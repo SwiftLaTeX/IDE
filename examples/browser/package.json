@@ -35,7 +35,7 @@
     "clean": "theia clean && rimraf errorShots",
     "build": "theiaext compile && theia build --mode development",
     "watch": "concurrently -n compile,bundle \"theiaext watch --preserveWatchOutput\" \"theia build --watch --mode development\"",
-    "start": "theia start --plugins=local-dir:../../plugins",
+    "start": "theia start",
     "start:debug": "yarn start --log-level=debug",
     "test": "wdio wdio.conf.js",
     "test-non-headless": "wdio wdio-non-headless.conf.js",
