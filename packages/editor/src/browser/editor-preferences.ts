@@ -1036,13 +1036,13 @@ export const editorPreferenceSchema: PreferenceSchema = {
                 'on',
                 'off'
             ],
-            'default': 'off',
+            'default': 'on',
             'description': 'Controls auto save of dirty files.',
             overridable: false
         },
         'editor.autoSaveDelay': {
             'type': 'number',
-            'default': 500,
+            'default': 2000,
             'description': 'Configure the auto save delay in milliseconds.',
             overridable: false
         },

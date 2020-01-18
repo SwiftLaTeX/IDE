@@ -41,7 +41,7 @@ import { UserPreferenceProvider } from './user-preference-provider';
 import { WorkspacePreferenceProvider } from './workspace-preference-provider';
 import { PreferencesEditorWidget, PreferenceEditorContainerTabBarRenderer } from './preference-editor-widget';
 import { EditorWidget, EditorManager } from '@theia/editor/lib/browser';
-import { JSONC_LANGUAGE_ID } from '@theia/json/lib/common';
+// import { JSONC_LANGUAGE_ID } from '@theia/json/lib/common';
 import { DisposableCollection, Emitter, Event, MessageService } from '@theia/core';
 import { Deferred } from '@theia/core/lib/common/promise-util';
 import { FileSystem, FileSystemUtils } from '@theia/filesystem/lib/common';
@@ -346,7 +346,7 @@ export class PreferencesEditorsContainer extends DockPanel {
             workspacePreferences.title.label = 'Workspace';
             workspacePreferences.title.caption = `Workspace Preferences: ${await this.getPreferenceEditorCaption(workspacePreferenceUri!)}`;
             workspacePreferences.title.iconClass = 'database-icon medium-yellow file-icon';
-            workspacePreferences.editor.setLanguage(JSONC_LANGUAGE_ID);
+            // workspacePreferences.editor.setLanguage(JSONC_LANGUAGE_ID);
             workspacePreferences.scope = PreferenceScope.Workspace;
         }
         return workspacePreferences;
