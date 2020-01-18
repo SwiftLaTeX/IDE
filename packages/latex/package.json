@@ -1,0 +1,40 @@
+{
+  "name": "@theia/latex",
+  "keywords": [
+    "theia-extension"
+  ],
+  "version": "0.0.0",
+  "files": [
+    "/data",
+    "/lib",
+    "/src"
+  ],
+
+  "dependencies": {
+    "@theia/core": "^0.14.0",
+    "@theia/editor": "^0.14.0",
+    "@theia/languages": "^0.14.0",
+    "@theia/monaco": "^0.14.0"
+  },
+  "devDependencies": {
+    "lerna": "2.4.0",
+    "rimraf": "latest",
+    "typescript": "latest"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "prepare": "yarn run clean && yarn run build",
+    "clean": "rimraf lib",
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "theiaExtensions": [
+    {
+      "frontend": "lib/browser/theia-latex-frontend-module",
+      "backend": "lib/node/theia-latex-backend-module"
+    }
+  ]
+}
