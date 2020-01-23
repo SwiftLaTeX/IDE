@@ -15,16 +15,16 @@
  ********************************************************************************/
 
 import { ContainerModule, interfaces } from 'inversify';
-import { ConnectionHandler, JsonRpcConnectionHandler, ILogger } from '@theia/core/lib/common';
+import { ConnectionHandler, JsonRpcConnectionHandler, /* ILogger */ } from '@theia/core/lib/common';
 import { FileSystemNode } from './node-filesystem';
 import { FileSystem, FileSystemClient, fileSystemPath, DispatchingFileSystemClient } from '../common';
-import { FileSystemWatcherServer, FileSystemWatcherClient, fileSystemWatcherPath } from '../common/filesystem-watcher-protocol';
-import { FileSystemWatcherServerClient } from './filesystem-watcher-client';
-import { NsfwFileSystemWatcherServer } from './nsfw-watcher/nsfw-filesystem-watcher';
+// import { FileSystemWatcherServer, FileSystemWatcherClient, fileSystemWatcherPath } from '../common/filesystem-watcher-protocol';
+// import { FileSystemWatcherServerClient } from './filesystem-watcher-client';
+// import { NsfwFileSystemWatcherServer } from './nsfw-watcher/nsfw-filesystem-watcher';
 import { MessagingService } from '@theia/core/lib/node/messaging/messaging-service';
 import { NodeFileUploadService } from './node-file-upload-service';
 
-const SINGLE_THREADED = process.argv.indexOf('--no-cluster') !== -1;
+// const SINGLE_THREADED = process.argv.indexOf('--no-cluster') !== -1;
 
 export function bindFileSystem(bind: interfaces.Bind, props?: {
     onFileSystemActivation: (context: interfaces.Context, fs: FileSystem) => void
@@ -38,20 +38,20 @@ export function bindFileSystem(bind: interfaces.Bind, props?: {
     bind(FileSystem).toService(FileSystemNode);
 }
 
-export function bindFileSystemWatcherServer(bind: interfaces.Bind, { singleThreaded }: { singleThreaded: boolean } = { singleThreaded: SINGLE_THREADED }): void {
-    if (singleThreaded) {
-        bind(FileSystemWatcherServer).toDynamicValue(ctx => {
-            const logger = ctx.container.get<ILogger>(ILogger);
-            return new NsfwFileSystemWatcherServer({
-                info: (message, ...args) => logger.info(message, ...args),
-                error: (message, ...args) => logger.error(message, ...args)
-            });
-        });
-    } else {
-        bind(FileSystemWatcherServerClient).toSelf();
-        bind(FileSystemWatcherServer).toService(FileSystemWatcherServerClient);
-    }
-}
+// export function bindFileSystemWatcherServer(bind: interfaces.Bind, { singleThreaded }: { singleThreaded: boolean } = { singleThreaded: SINGLE_THREADED }): void {
+//     if (singleThreaded) {
+//         bind(FileSystemWatcherServer).toDynamicValue(ctx => {
+//             const logger = ctx.container.get<ILogger>(ILogger);
+//             return new NsfwFileSystemWatcherServer({
+//                 info: (message, ...args) => logger.info(message, ...args),
+//                 error: (message, ...args) => logger.error(message, ...args)
+//             });
+//         });
+//     } else {
+//         bind(FileSystemWatcherServerClient).toSelf();
+//         bind(FileSystemWatcherServer).toService(FileSystemWatcherServerClient);
+//     }
+// }
 
 export default new ContainerModule(bind => {
     bind(DispatchingFileSystemClient).toSelf().inSingletonScope();
@@ -72,15 +72,15 @@ export default new ContainerModule(bind => {
         })
     ).inSingletonScope();
 
-    bindFileSystemWatcherServer(bind);
-    bind(ConnectionHandler).toDynamicValue(ctx =>
-        new JsonRpcConnectionHandler<FileSystemWatcherClient>(fileSystemWatcherPath, client => {
-            const server = ctx.container.get<FileSystemWatcherServer>(FileSystemWatcherServer);
-            server.setClient(client);
-            client.onDidCloseConnection(() => server.dispose());
-            return server;
-        })
-    ).inSingletonScope();
+    // bindFileSystemWatcherServer(bind);
+    // bind(ConnectionHandler).toDynamicValue(ctx =>
+    //     new JsonRpcConnectionHandler<FileSystemWatcherClient>(fileSystemWatcherPath, client => {
+    //         const server = ctx.container.get<FileSystemWatcherServer>(FileSystemWatcherServer);
+    //         server.setClient(client);
+    //         client.onDidCloseConnection(() => server.dispose());
+    //         return server;
+    //     })
+    // ).inSingletonScope();
 
     bind(NodeFileUploadService).toSelf().inSingletonScope();
     bind(MessagingService.Contribution).toService(NodeFileUploadService);

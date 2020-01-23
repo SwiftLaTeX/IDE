@@ -20,10 +20,10 @@ import { ContainerModule, interfaces } from 'inversify';
 import { ResourceResolver, CommandContribution } from '@theia/core/lib/common';
 import { WebSocketConnectionProvider, FrontendApplicationContribution, ConfirmDialog, LabelProviderContribution, LabelProvider } from '@theia/core/lib/browser';
 import { FileSystem, fileSystemPath, FileShouldOverwrite, FileStat } from '../common';
-import {
-    fileSystemWatcherPath, FileSystemWatcherServer,
-    FileSystemWatcherServerProxy, ReconnectingFileSystemWatcherServer
-} from '../common/filesystem-watcher-protocol';
+// import {
+//     fileSystemWatcherPath, FileSystemWatcherServer,
+//     FileSystemWatcherServerProxy, ReconnectingFileSystemWatcherServer
+// } from '../common/filesystem-watcher-protocol';
 import { FileResourceResolver } from './file-resource';
 import { bindFileSystemPreferences } from './filesystem-preferences';
 import { FileSystemWatcher } from './filesystem-watcher';
@@ -36,10 +36,10 @@ import URI from '@theia/core/lib/common/uri';
 export default new ContainerModule(bind => {
     bindFileSystemPreferences(bind);
 
-    bind(FileSystemWatcherServerProxy).toDynamicValue(ctx =>
-        WebSocketConnectionProvider.createProxy(ctx.container, fileSystemWatcherPath)
-    );
-    bind(FileSystemWatcherServer).to(ReconnectingFileSystemWatcherServer);
+    // bind(FileSystemWatcherServerProxy).toDynamicValue(ctx =>
+    //     WebSocketConnectionProvider.createProxy(ctx.container, fileSystemWatcherPath)
+    // );
+    // bind(FileSystemWatcherServer).to(ReconnectingFileSystemWatcherServer);
     bind(FileSystemWatcher).toSelf().inSingletonScope();
     bind(FileShouldOverwrite).toDynamicValue(context => async (file: FileStat, stat: FileStat): Promise<boolean> => {
         const labelProvider = context.container.get(LabelProvider);

@@ -18,8 +18,8 @@ import { injectable, inject, postConstruct } from 'inversify';
 import { Disposable, DisposableCollection, Emitter, Event } from '@theia/core/lib/common';
 import URI from '@theia/core/lib/common/uri';
 import { FileSystem, FileShouldOverwrite } from '../common/filesystem';
-import { DidFilesChangedParams, FileChangeType, FileSystemWatcherServer, WatchOptions } from '../common/filesystem-watcher-protocol';
-import { FileSystemPreferences } from './filesystem-preferences';
+import { /* DidFilesChangedParams, */ FileChangeType, /* FileSystemWatcherServer, WatchOptions */ } from '../common/filesystem-watcher-protocol';
+// import { FileSystemPreferences } from './filesystem-preferences';
 
 export {
     FileChangeType
@@ -96,11 +96,11 @@ export class FileSystemWatcher implements Disposable {
     protected readonly onWillMoveEmitter = new Emitter<FileWillMoveEvent>();
     readonly onWillMove: Event<FileWillMoveEvent> = this.onWillMoveEmitter.event;
 
-    @inject(FileSystemWatcherServer)
-    protected readonly server: FileSystemWatcherServer;
+    // @inject(FileSystemWatcherServer)
+    // protected readonly server: FileSystemWatcherServer;
 
-    @inject(FileSystemPreferences)
-    protected readonly preferences: FileSystemPreferences;
+    // @inject(FileSystemPreferences)
+    // protected readonly preferences: FileSystemPreferences;
 
     @inject(FileSystem)
     protected readonly filesystem: FileSystem;
@@ -114,17 +114,17 @@ export class FileSystemWatcher implements Disposable {
     protected init(): void {
         this.toDispose.push(this.onFileChangedEmitter);
         this.toDispose.push(this.onDidMoveEmitter);
+        this.toDispose.push(this.onWillMoveEmitter);
+        // this.toDispose.push(this.server);
+        // this.server.setClient({
+        //     onDidFilesChanged: e => this.onDidFilesChanged(e)
+        // });
 
-        this.toDispose.push(this.server);
-        this.server.setClient({
-            onDidFilesChanged: e => this.onDidFilesChanged(e)
-        });
-
-        this.toDispose.push(this.preferences.onPreferenceChanged(e => {
-            if (e.preferenceName === 'files.watcherExclude') {
-                this.toRestartAll.dispose();
-            }
-        }));
+        // this.toDispose.push(this.preferences.onPreferenceChanged(e => {
+        //     if (e.preferenceName === 'files.watcherExclude') {
+        //         this.toRestartAll.dispose();
+        //     }
+        // }));
 
         this.filesystem.setClient({
             shouldOverwrite: this.shouldOverwrite.bind(this),
@@ -140,13 +140,13 @@ export class FileSystemWatcher implements Disposable {
         this.toDispose.dispose();
     }
 
-    protected onDidFilesChanged(event: DidFilesChangedParams): void {
-        const changes = event.changes.map(change => <FileChange>{
-            uri: new URI(change.uri),
-            type: change.type
-        });
-        this.onFileChangedEmitter.fire(changes);
-    }
+    // protected onDidFilesChanged(event: DidFilesChangedParams): void {
+    //     const changes = event.changes.map(change => <FileChange>{
+    //         uri: new URI(change.uri),
+    //         type: change.type
+    //     });
+    //     this.onFileChangedEmitter.fire(changes);
+    // }
 
     /**
      * Start file watching under the given uri.
@@ -155,38 +155,42 @@ export class FileSystemWatcher implements Disposable {
      * Return a disposable to stop file watching under the given uri.
      */
     watchFileChanges(uri: URI): Promise<Disposable> {
-        return this.createWatchOptions(uri.toString())
-            .then(options =>
-                this.server.watchFileChanges(uri.toString(), options)
-            )
-            .then(watcher => {
-                const toDispose = new DisposableCollection();
-                const toStop = Disposable.create(() =>
-                    this.server.unwatchFileChanges(watcher)
-                );
-                const toRestart = toDispose.push(toStop);
-                this.toRestartAll.push(Disposable.create(() => {
-                    toRestart.dispose();
-                    toStop.dispose();
-                    this.watchFileChanges(uri).then(disposable =>
-                        toDispose.push(disposable)
-                    );
-                }));
-                return toDispose;
-            });
+        // return this.createWatchOptions(uri.toString())
+        //     .then(options =>
+        //         this.server.watchFileChanges(uri.toString(), options)
+        //     )
+        //     .then(watcher => {
+        //         const toDispose = new DisposableCollection();
+        //         const toStop = Disposable.create(() =>
+        //             this.server.unwatchFileChanges(watcher)
+        //         );
+        //         const toRestart = toDispose.push(toStop);
+        //         this.toRestartAll.push(Disposable.create(() => {
+        //             toRestart.dispose();
+        //             toStop.dispose();
+        //             this.watchFileChanges(uri).then(disposable =>
+        //                 toDispose.push(disposable)
+        //             );
+        //         }));
+        //         return toDispose;
+        //     });
+        return new Promise((resolve, reject) => {
+            console.warn('Dummy File Watcher ' + uri);
+            resolve(new DisposableCollection());
+        });
     }
 
-    protected createWatchOptions(uri: string): Promise<WatchOptions> {
-        return this.getIgnored(uri).then(ignored => ({
-            // always ignore temporary upload files
-            ignored: ignored.concat('**/theia_upload_*')
-        }));
-    }
+    // protected createWatchOptions(uri: string): Promise<WatchOptions> {
+    //     return this.getIgnored(uri).then(ignored => ({
+    //         // always ignore temporary upload files
+    //         ignored: ignored.concat('**/theia_upload_*')
+    //     }));
+    // }
 
-    protected async getIgnored(uri: string): Promise<string[]> {
-        const patterns = this.preferences.get('files.watcherExclude', undefined, uri);
-        return Object.keys(patterns).filter(pattern => patterns[pattern]);
-    }
+    // protected async getIgnored(uri: string): Promise<string[]> {
+    //     const patterns = this.preferences.get('files.watcherExclude', undefined, uri);
+    //     return Object.keys(patterns).filter(pattern => patterns[pattern]);
+    // }
 
     protected fireDidMove(sourceUri: string, targetUri: string): void {
         this.onDidMoveEmitter.fire({
