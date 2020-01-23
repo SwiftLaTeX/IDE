@@ -175,7 +175,7 @@ export class FileSystemWatcher implements Disposable {
         //         return toDispose;
         //     });
         return new Promise((resolve, reject) => {
-            console.warn('Dummy File Watcher ' + uri);
+            console.log('Dummy File Watcher ' + uri);
             resolve(new DisposableCollection());
         });
     }
