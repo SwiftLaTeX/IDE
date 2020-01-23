@@ -24,11 +24,11 @@ import {
     bindContributionProvider,
     SelectionService,
     ResourceResolver,
-    CommandContribution, CommandRegistry, CommandService, commandServicePath,
+    CommandContribution, CommandRegistry, CommandService, /*commandServicePath,*/
     MenuModelRegistry, MenuContribution,
-    MessageClient,
-    InMemoryResources,
-    messageServicePath
+    // MessageClient,
+    InMemoryResources
+    // messageServicePath
 } from '../common';
 import { KeybindingRegistry, KeybindingContext, KeybindingContribution } from './keybinding';
 import { FrontendApplication, FrontendApplicationContribution, DefaultFrontendApplicationContribution } from './frontend-application';
@@ -65,7 +65,7 @@ import { JsonSchemaStore } from './json-schema-store';
 import { TabBarToolbarRegistry, TabBarToolbarContribution, TabBarToolbarFactory, TabBarToolbar } from './shell/tab-bar-toolbar';
 import { bindCorePreferences } from './core-preferences';
 import { QuickPickServiceImpl } from './quick-open/quick-pick-service-impl';
-import { QuickPickService, quickPickServicePath } from '../common/quick-pick-service';
+import { QuickPickService, /* quickPickServicePath */ } from '../common/quick-pick-service';
 import { ContextKeyService } from './context-key-service';
 import { ResourceContextKey } from './resource-context-key';
 import { KeyboardLayoutService } from './keyboard/keyboard-layout-service';
@@ -179,10 +179,11 @@ export const frontendApplicationModule = new ContainerModule((bind, unbind, isBo
     bind(ResourceResolver).toService(InMemoryResources);
 
     bind(SelectionService).toSelf().inSingletonScope();
-    bind(CommandRegistry).toSelf().inSingletonScope().onActivation(({ container }, registry) => {
-        WebSocketConnectionProvider.createProxy(container, commandServicePath, registry);
-        return registry;
-    });
+    bind(CommandRegistry).toSelf().inSingletonScope();
+    // .onActivation(({ container }, registry) => {
+    //     WebSocketConnectionProvider.createProxy(container, commandServicePath, registry);
+    //     return registry;
+    // });
     bind(CommandService).toService(CommandRegistry);
     bindContributionProvider(bind, CommandContribution);
     bind(QuickOpenContribution).to(CommandQuickOpenContribution);
@@ -197,11 +198,12 @@ export const frontendApplicationModule = new ContainerModule((bind, unbind, isBo
     bindContributionProvider(bind, KeybindingContext);
     bindContributionProvider(bind, KeybindingContribution);
 
-    bindMessageService(bind).onActivation(({ container }, messages) => {
-        const client = container.get(MessageClient);
-        WebSocketConnectionProvider.createProxy(container, messageServicePath, client);
-        return messages;
-    });
+    bindMessageService(bind);
+    // .onActivation(({ container }, messages) => {
+    //     const client = container.get(MessageClient);
+    //     WebSocketConnectionProvider.createProxy(container, messageServicePath, client);
+    //     return messages;
+    // });
 
     bind(ResourceContextKey).toSelf().inSingletonScope();
     bind(CommonFrontendContribution).toSelf().inSingletonScope();
@@ -218,10 +220,11 @@ export const frontendApplicationModule = new ContainerModule((bind, unbind, isBo
         bind(serviceIdentifier).toService(QuickCommandFrontendContribution)
     );
 
-    bind(QuickPickService).to(QuickPickServiceImpl).inSingletonScope().onActivation(({ container }, quickPickService: QuickPickService) => {
-        WebSocketConnectionProvider.createProxy(container, quickPickServicePath, quickPickService);
-        return quickPickService;
-    });
+    bind(QuickPickService).to(QuickPickServiceImpl).inSingletonScope();
+    // .onActivation(({ container }, quickPickService: QuickPickService) => {
+    //     WebSocketConnectionProvider.createProxy(container, quickPickServicePath, quickPickService);
+    //     return quickPickService;
+    // });
 
     bind(PrefixQuickOpenService).toSelf().inSingletonScope();
     bindContributionProvider(bind, QuickOpenContribution);

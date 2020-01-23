@@ -24,14 +24,15 @@ export class EnvVariablesServerImpl implements EnvVariablesServer {
     protected readonly envs: { [key: string]: EnvVariable } = {};
 
     constructor() {
-        const prEnv = process.env;
-        Object.keys(prEnv).forEach((key: string) => {
-            this.envs[key] = { 'name': key, 'value': prEnv[key] };
-        });
+        // const prEnv = process.env;
+        // Object.keys(prEnv).forEach((key: string) => {
+        //     this.envs[key] = { 'name': key, 'value': prEnv[key] };
+        // });
     }
 
     async getExecPath(): Promise<string> {
-        return process.execPath;
+        console.log('Dummy getExecPath');
+        return '/tmp/swiftlatex';
     }
 
     async getVariables(): Promise<EnvVariable[]> {
@@ -39,6 +40,9 @@ export class EnvVariablesServerImpl implements EnvVariablesServer {
     }
 
     async getValue(key: string): Promise<EnvVariable | undefined> {
+        if (key !== 'does_not_matter') { // does_not_matter stands for ping
+            console.log('Dummy getEnvValue:' + key);
+        }
         if (isWindows) {
             key = key.toLowerCase();
         }
