@@ -16,7 +16,7 @@
 
 import { ContainerModule, interfaces } from 'inversify';
 import { CommandContribution, MenuContribution } from '@theia/core/lib/common';
-import { WebSocketConnectionProvider, FrontendApplicationContribution, KeybindingContribution } from '@theia/core/lib/browser';
+import { /* WebSocketConnectionProvider, */ FrontendApplicationContribution, KeybindingContribution } from '@theia/core/lib/browser';
 import {
     OpenFileDialogFactory,
     SaveFileDialogFactory,
@@ -30,7 +30,7 @@ import {
 import { StorageService } from '@theia/core/lib/browser/storage-service';
 import { LabelProviderContribution } from '@theia/core/lib/browser/label-provider';
 import { VariableContribution } from '@theia/variable-resolver/lib/browser';
-import { WorkspaceServer, workspacePath } from '../common';
+import { WorkspaceServer, /* workspacePath */ } from '../common';
 import { WorkspaceFrontendContribution } from './workspace-frontend-contribution';
 import { WorkspaceService } from './workspace-service';
 import { WorkspaceCommandContribution, FileMenuContribution, EditMenuContribution } from './workspace-commands';
@@ -44,16 +44,18 @@ import { WorkspaceDuplicateHandler } from './workspace-duplicate-handler';
 import { WorkspaceUtils } from './workspace-utils';
 import { WorkspaceCompareHandler } from './workspace-compare-handler';
 import { DiffService } from './diff-service';
+import { WorkspaceDummyServer } from './workspace-dummy-server';
 
 export default new ContainerModule((bind: interfaces.Bind, unbind: interfaces.Unbind, isBound: interfaces.IsBound, rebind: interfaces.Rebind) => {
     bindWorkspacePreferences(bind);
 
     bind(WorkspaceService).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(WorkspaceService);
-    bind(WorkspaceServer).toDynamicValue(ctx => {
-        const provider = ctx.container.get(WebSocketConnectionProvider);
-        return provider.createProxy<WorkspaceServer>(workspacePath);
-    }).inSingletonScope();
+    // bind(WorkspaceServer).toDynamicValue(ctx => {
+    //     const provider = ctx.container.get(WebSocketConnectionProvider);
+    //     return provider.createProxy<WorkspaceServer>(workspacePath);
+    // }).inSingletonScope();
+    bind(WorkspaceServer).to(WorkspaceDummyServer).inSingletonScope();
 
     bind(WorkspaceFrontendContribution).toSelf().inSingletonScope();
     for (const identifier of [CommandContribution, KeybindingContribution, MenuContribution]) {

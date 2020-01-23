@@ -15,20 +15,20 @@
  ********************************************************************************/
 
 import { ContainerModule } from 'inversify';
-import { ConnectionHandler, JsonRpcConnectionHandler } from '@theia/core/lib/common';
-import { WorkspaceServer, workspacePath } from '../common';
-import { DefaultWorkspaceServer, WorkspaceCliContribution } from './default-workspace-server';
-import { CliContribution } from '@theia/core/lib/node/cli';
+// import { ConnectionHandler, JsonRpcConnectionHandler } from '@theia/core/lib/common';
+// import { WorkspaceServer, workspacePath } from '../common';
+// import { DefaultWorkspaceServer, WorkspaceCliContribution } from './default-workspace-server';
+// import { CliContribution } from '@theia/core/lib/node/cli';
 
 export default new ContainerModule(bind => {
-    bind(WorkspaceCliContribution).toSelf().inSingletonScope();
-    bind(CliContribution).toService(WorkspaceCliContribution);
-    bind(DefaultWorkspaceServer).toSelf().inSingletonScope();
-    bind(WorkspaceServer).toService(DefaultWorkspaceServer);
+    // bind(WorkspaceCliContribution).toSelf().inSingletonScope();
+    // bind(CliContribution).toService(WorkspaceCliContribution);
+    // bind(DefaultWorkspaceServer).toSelf().inSingletonScope();
+    // bind(WorkspaceServer).toService(DefaultWorkspaceServer);
 
-    bind(ConnectionHandler).toDynamicValue(ctx =>
-        new JsonRpcConnectionHandler(workspacePath, () =>
-            ctx.container.get(WorkspaceServer)
-        )
-    ).inSingletonScope();
+    // bind(ConnectionHandler).toDynamicValue(ctx =>
+    //     new JsonRpcConnectionHandler(workspacePath, () =>
+    //         ctx.container.get(WorkspaceServer)
+    //     )
+    // ).inSingletonScope();
 });
