@@ -27,7 +27,8 @@ export class TeXContribution implements LanguageGrammarDefinitionContribution {
         },
         'brackets': [
             ['{', '}'],
-            ['[', ']']
+            ['[', ']'],
+            ['(', ')']
         ],
         'autoClosingPairs': [
             { 'open': '{', 'close': '}', 'notIn': ['string'] },
@@ -35,7 +36,17 @@ export class TeXContribution implements LanguageGrammarDefinitionContribution {
             { 'open': '(', 'close': ')', 'notIn': ['string'] },
             { 'open': '`', 'close': '`', 'notIn': ['string', 'comment'] },
             { 'open': '"', 'close': '"', 'notIn': ['string', 'comment'] },
+            { 'open': '$', 'close': '$', 'notIn': ['string', 'comment'] }
+        ],
+        'surroundingPairs': [
+            { 'open': '{', 'close': '}' },
+            { 'open': '[', 'close': ']' },
+            { 'open': '(', 'close': ')' },
+            { 'open': '`', 'close': '`' },
+            { 'open': '"', 'close': '"' },
+            { 'open': '$', 'close': '$' }
         ]
+
     };
 
     registerTextmateLanguage(registry: TextmateRegistry): void {

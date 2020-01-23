@@ -27,7 +27,8 @@ export class BibTeXContribution implements LanguageGrammarDefinitionContribution
         },
         'brackets': [
             ['{', '}'],
-            ['[', ']']
+            ['[', ']'],
+            ['(', ')']
         ],
         'autoClosingPairs': [
             { 'open': '{', 'close': '}', 'notIn': ['string'] },
@@ -35,6 +36,15 @@ export class BibTeXContribution implements LanguageGrammarDefinitionContribution
             { 'open': '(', 'close': ')', 'notIn': ['string'] },
             { 'open': '`', 'close': '`', 'notIn': ['string', 'comment'] },
             { 'open': '"', 'close': '"', 'notIn': ['string', 'comment'] },
+            { 'open': '$', 'close': '$', 'notIn': ['string', 'comment'] }
+        ],
+        'surroundingPairs': [
+            { 'open': '{', 'close': '}' },
+            { 'open': '[', 'close': ']' },
+            { 'open': '(', 'close': ')' },
+            { 'open': '`', 'close': '`' },
+            { 'open': '"', 'close': '"' },
+            { 'open': '$', 'close': '$' }
         ]
     };
 

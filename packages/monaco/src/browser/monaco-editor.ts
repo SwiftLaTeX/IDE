@@ -38,7 +38,7 @@ import {
     EncodingMode
 } from '@theia/editor/lib/browser';
 import { MonacoEditorModel } from './monaco-editor-model';
-
+import { MonacoYJSBinding } from './monaco-yjs';
 import IEditorConstructionOptions = monaco.editor.IEditorConstructionOptions;
 import IModelDeltaDecoration = monaco.editor.IModelDeltaDecoration;
 import IEditorOverrideServices = monaco.editor.IEditorOverrideServices;
@@ -71,7 +71,7 @@ export class MonacoEditor extends MonacoEditorServices implements TextEditor {
     protected readonly minHeight: number;
     protected readonly maxHeight: number;
     protected editor: IStandaloneCodeEditor;
-
+    protected yjs: MonacoYJSBinding;
     protected readonly onCursorPositionChangedEmitter = new Emitter<Position>();
     protected readonly onSelectionChangedEmitter = new Emitter<Range>();
     protected readonly onFocusChangedEmitter = new Emitter<boolean>();
@@ -94,6 +94,7 @@ export class MonacoEditor extends MonacoEditorServices implements TextEditor {
         override?: IEditorOverrideServices
     ) {
         super(services);
+        console.log(uri);
         this.toDispose.pushAll([
             this.onCursorPositionChangedEmitter,
             this.onSelectionChangedEmitter,
@@ -104,6 +105,7 @@ export class MonacoEditor extends MonacoEditorServices implements TextEditor {
             this.onScrollChangedEmitter,
             this.onEncodingChangedEmitter
         ]);
+        this.yjs = new MonacoYJSBinding(document);
         this.documents.add(document);
         this.autoSizing = options && options.autoSizing !== undefined ? options.autoSizing : false;
         this.minHeight = options && options.minHeight !== undefined ? options.minHeight : -1;
@@ -319,6 +321,7 @@ export class MonacoEditor extends MonacoEditorServices implements TextEditor {
     }
 
     dispose(): void {
+        console.log('closing editor');
         this.toDispose.dispose();
     }
 
