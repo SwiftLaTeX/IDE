@@ -15,11 +15,12 @@
  ********************************************************************************/
 
 import { ContainerModule, Container } from 'inversify';
-import { ILoggerServer, loggerPath, ConsoleLogger } from '../common/logger-protocol';
+import { ILoggerServer, /* loggerPath, ConsoleLogger */ } from '../common/logger-protocol';
 import { ILogger, Logger, LoggerFactory, setRootLogger, LoggerName, rootLoggerName } from '../common/logger';
 import { LoggerWatcher } from '../common/logger-watcher';
-import { WebSocketConnectionProvider } from './messaging';
+// import { WebSocketConnectionProvider } from './messaging';
 import { FrontendApplicationContribution } from './frontend-application';
+import { LoggerDummyServer } from './logger-dummy-server';
 
 export const loggerFrontendModule = new ContainerModule(bind => {
     bind(FrontendApplicationContribution).toDynamicValue(ctx => ({
@@ -31,21 +32,23 @@ export const loggerFrontendModule = new ContainerModule(bind => {
     bind(LoggerName).toConstantValue(rootLoggerName);
     bind(ILogger).to(Logger).inSingletonScope().whenTargetIsDefault();
     bind(LoggerWatcher).toSelf().inSingletonScope();
-    bind(ILoggerServer).toDynamicValue(ctx => {
-        const loggerWatcher = ctx.container.get(LoggerWatcher);
-        const connection = ctx.container.get(WebSocketConnectionProvider);
-        const target = connection.createProxy<ILoggerServer>(loggerPath, loggerWatcher.getLoggerClient());
-        function get<K extends keyof ILoggerServer>(_: ILoggerServer, property: K): ILoggerServer[K] | ILoggerServer['log'] {
-            if (property === 'log') {
-                return (name, logLevel, message, params) => {
-                    ConsoleLogger.log(name, logLevel, message, params);
-                    return target.log(name, logLevel, message, params);
-                };
-            }
-            return target[property];
-        }
-        return new Proxy(target, { get });
-    }).inSingletonScope();
+    // bind(ILoggerServer).toDynamicValue(ctx => {
+    //     const loggerWatcher = ctx.container.get(LoggerWatcher);
+    //     const connection = ctx.container.get(WebSocketConnectionProvider);
+    //     const target = connection.createProxy<ILoggerServer>(loggerPath, loggerWatcher.getLoggerClient());
+    //     function get<K extends keyof ILoggerServer>(_: ILoggerServer, property: K): ILoggerServer[K] | ILoggerServer['log'] {
+    //         if (property === 'log') {
+    //             return (name, logLevel, message, params) => {
+    //                 ConsoleLogger.log(name, logLevel, message, params);
+    //                 return target.log(name, logLevel, message, params);
+    //             };
+    //         }
+    //         return target[property];
+    //     }
+    //     return new Proxy(target, { get });
+    // }).inSingletonScope();
+
+    bind(ILoggerServer).to(LoggerDummyServer).inSingletonScope();
     bind(LoggerFactory).toFactory(ctx =>
         (name: string) => {
             const child = new Container({ defaultScope: 'Singleton' });

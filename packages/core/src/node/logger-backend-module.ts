@@ -15,9 +15,9 @@
  ********************************************************************************/
 
 import { ContainerModule, Container, interfaces } from 'inversify';
-import { ConnectionHandler, JsonRpcConnectionHandler } from '../common/messaging';
+// import { ConnectionHandler, JsonRpcConnectionHandler } from '../common/messaging';
 import { ILogger, LoggerFactory, Logger, setRootLogger, LoggerName, rootLoggerName } from '../common/logger';
-import { ILoggerServer, ILoggerClient, loggerPath, DispatchingLoggerClient } from '../common/logger-protocol';
+import { ILoggerServer, /* ILoggerClient, loggerPath, */ DispatchingLoggerClient } from '../common/logger-protocol';
 import { ConsoleLoggerServer } from './console-logger-server';
 import { LoggerWatcher } from '../common/logger-watcher';
 import { BackendApplicationContribution } from './backend-application';
@@ -70,12 +70,12 @@ export const loggerBackendModule = new ContainerModule(bind => {
         }
     });
 
-    bind(ConnectionHandler).toDynamicValue(({ container }) =>
-        new JsonRpcConnectionHandler<ILoggerClient>(loggerPath, client => {
-            const dispatching = container.get(DispatchingLoggerClient);
-            dispatching.clients.add(client);
-            client.onDidCloseConnection(() => dispatching.clients.delete(client));
-            return container.get<ILoggerServer>(ILoggerServer);
-        })
-    ).inSingletonScope();
+    // bind(ConnectionHandler).toDynamicValue(({ container }) =>
+    //     new JsonRpcConnectionHandler<ILoggerClient>(loggerPath, client => {
+    //         const dispatching = container.get(DispatchingLoggerClient);
+    //         dispatching.clients.add(client);
+    //         client.onDidCloseConnection(() => dispatching.clients.delete(client));
+    //         return container.get<ILoggerServer>(ILoggerServer);
+    //     })
+    // ).inSingletonScope();
 });
