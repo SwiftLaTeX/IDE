@@ -103,7 +103,21 @@ export class S3StorageSystem {
     @inject(FileSystemWatcherServer)
     private readonly fileSystemWatcherServer: FileSystemWatcherServer;
 
-    constructor() {}
+    constructor() {
+        this._init_fs().catch(e => {
+            throw e;
+        });
+    }
+
+    private async _init_fs() {
+        const rootnode = await this._headObject(ROOT_MARKER);
+        if (!rootnode) {
+            const empty_list: MetaDictionary<MetaDictionary<string>> = {};
+            const obj = new S3Object();
+            obj.data = JSON.stringify(empty_list);
+            await this._putObject(ROOT_MARKER, obj);
+        }
+    }
 
     /* Query a path to its node id */
     public async _resolvePath(p: string): Promise<DirectoryInode | undefined> {
@@ -619,26 +633,15 @@ export class S3StorageSystem {
     private async _prepareLocked(): Promise<void> {
         if (Date.now() > this.opts.expiry) {
             /* Need to renew */
-
             this.s3 = undefined;
-            // const creds = await fetch('/key');
-            // const json_creds = await creds.json();
-            // this.opts.apiKey = json_creds['_APIKEY'];
-            // this.opts.apiSecret = json_creds['_APISECRET'];
-            // this.opts.sessionToken = json_creds['_SESSIONTOKEN'];
-            // this.opts.prefix = json_creds['_PREFIX'];
-            // this.opts.expiry = json_creds['_EXPIRY'] * 1000;
-            // this.opts.endpoint = json_creds['_ENDPOINT'];
-
-            this.opts = {
-                bucket: 'swiftlatex',
-                prefix: 'test4/',
-                apiKey: '2cd681fe24303bd55c16f90a1d8ce1aa',
-                apiSecret: '60a54d2274312f0d0ad9d3066f317599',
-                sessionToken: '',
-                endpoint: 'http://s3.swiftlatex.com:9000',
-                expiry: Date.now() + 36000,
-            };
+            const creds = await fetch('/key');
+            const json_creds = await creds.json();
+            this.opts.apiKey = json_creds['_APIKEY'];
+            this.opts.apiSecret = json_creds['_APISECRET'];
+            this.opts.sessionToken = json_creds['_SESSIONTOKEN'];
+            this.opts.prefix = json_creds['_PREFIX'];
+            this.opts.expiry = json_creds['_EXPIRY'] * 1000;
+            this.opts.endpoint = json_creds['_ENDPOINT'];
             if (!this.opts.apiKey) {
                 throw Error('Failed to obtain an api key');
             }
@@ -646,8 +649,8 @@ export class S3StorageSystem {
                 throw Error('Prefix should not be empty or endwith a slash.');
             }
             if (this.opts.expiry < Date.now()) {
-                /* Unlikely to happen */
-                throw Error('Please sync the time.');
+                /* Unlikely to happen for https */
+                throw Error('Please sync the time. ');
             }
 
             /* Have a new client */
@@ -661,16 +664,5 @@ export class S3StorageSystem {
             });
         }
     }
-
-    public async _init_fs() {
-        const rootnode = await this._headObject(ROOT_MARKER);
-        if (!rootnode) {
-            const empty_list: MetaDictionary<MetaDictionary<string>> = {};
-            const obj = new S3Object();
-            obj.data = JSON.stringify(empty_list);
-            await this._putObject(ROOT_MARKER, obj);
-        }
-    }
 }
 
-(<any>window).s3fs = new S3StorageSystem();

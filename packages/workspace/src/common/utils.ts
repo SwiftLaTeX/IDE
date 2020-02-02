@@ -20,5 +20,5 @@ export const THEIA_EXT = 'theia-workspace';
 export const VSCODE_EXT = 'code-workspace';
 
 export function getTemporaryWorkspaceFileUri(home: URI): URI {
-    return home.resolve('.theia').resolve(`Untitled.${THEIA_EXT}`).withScheme('file');
+    return home.resolve('.swiftlatex').resolve(`Untitled.${THEIA_EXT}`).withScheme('file');
 }
