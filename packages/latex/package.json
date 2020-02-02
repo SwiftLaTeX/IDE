@@ -11,10 +11,10 @@
   ],
 
   "dependencies": {
-    "@theia/core": "^0.14.0",
-    "@theia/editor": "^0.14.0",
-    "@theia/languages": "^0.14.0",
-    "@theia/monaco": "^0.14.0"
+    "@theia/core": "^0.15.0",
+    "@theia/editor": "^0.15.0",
+    "@theia/languages": "^0.15.0",
+    "@theia/monaco": "^0.15.0"
   },
   "devDependencies": {
     "lerna": "2.4.0",

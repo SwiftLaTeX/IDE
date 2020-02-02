@@ -15,14 +15,14 @@
  ********************************************************************************/
 
 import { ContainerModule, interfaces } from 'inversify';
-import { ConnectionHandler, JsonRpcConnectionHandler, /* ILogger */ } from '@theia/core/lib/common';
+// import { ConnectionHandler, JsonRpcConnectionHandler, ILogger  } from '@theia/core/lib/common';
 import { FileSystemNode } from './node-filesystem';
-import { FileSystem, FileSystemClient, fileSystemPath, DispatchingFileSystemClient } from '../common';
+import { FileSystem, /* FileSystemClient, fileSystemPath, */ DispatchingFileSystemClient } from '../common';
 // import { FileSystemWatcherServer, FileSystemWatcherClient, fileSystemWatcherPath } from '../common/filesystem-watcher-protocol';
 // import { FileSystemWatcherServerClient } from './filesystem-watcher-client';
 // import { NsfwFileSystemWatcherServer } from './nsfw-watcher/nsfw-filesystem-watcher';
-import { MessagingService } from '@theia/core/lib/node/messaging/messaging-service';
-import { NodeFileUploadService } from './node-file-upload-service';
+// import { MessagingService } from '@theia/core/lib/node/messaging/messaging-service';
+// import { NodeFileUploadService } from './node-file-upload-service';
 
 // const SINGLE_THREADED = process.argv.indexOf('--no-cluster') !== -1;
 
@@ -63,14 +63,15 @@ export default new ContainerModule(bind => {
             };
         }
     });
-    bind(ConnectionHandler).toDynamicValue(({ container }) =>
-        new JsonRpcConnectionHandler<FileSystemClient>(fileSystemPath, client => {
-            const dispatching = container.get(DispatchingFileSystemClient);
-            dispatching.clients.add(client);
-            client.onDidCloseConnection(() => dispatching.clients.delete(client));
-            return container.get(FileSystem);
-        })
-    ).inSingletonScope();
+
+    // bind(ConnectionHandler).toDynamicValue(({ container }) =>
+    //     new JsonRpcConnectionHandler<FileSystemClient>(fileSystemPath, client => {
+    //         const dispatching = container.get(DispatchingFileSystemClient);
+    //         dispatching.clients.add(client);
+    //         client.onDidCloseConnection(() => dispatching.clients.delete(client));
+    //         return container.get(FileSystem);
+    //     })
+    // ).inSingletonScope();
 
     // bindFileSystemWatcherServer(bind);
     // bind(ConnectionHandler).toDynamicValue(ctx =>
@@ -82,6 +83,6 @@ export default new ContainerModule(bind => {
     //     })
     // ).inSingletonScope();
 
-    bind(NodeFileUploadService).toSelf().inSingletonScope();
-    bind(MessagingService.Contribution).toService(NodeFileUploadService);
+    // bind(NodeFileUploadService).toSelf().inSingletonScope();
+    // bind(MessagingService.Contribution).toService(NodeFileUploadService);
 });

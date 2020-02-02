@@ -52,9 +52,12 @@ export class FileSystemNodeOptions {
 @injectable()
 export class FileSystemNode implements FileSystem {
 
+    private seq: number;
     constructor(
         @inject(FileSystemNodeOptions) @optional() protected readonly options: FileSystemNodeOptions = FileSystemNodeOptions.DEFAULT
-    ) { }
+    ) {
+        this.seq = 0;
+    }
 
     protected client: FileSystemClient | undefined;
     setClient(client: FileSystemClient | undefined): void {
@@ -62,16 +65,20 @@ export class FileSystemNode implements FileSystem {
     }
 
     async getFileStat(uri: string): Promise<FileStat | undefined> {
+        // console.log('GetFileStat ' + uri);
         const uri_ = new URI(uri);
         const stat = await this.doGetStat(uri_, 1);
         return stat;
     }
 
     async exists(uri: string): Promise<boolean> {
+        console.log('Exists ' + uri);
         return fs.pathExists(FileUri.fsPath(new URI(uri)));
     }
 
     async resolveContent(uri: string, options?: { encoding?: string }): Promise<{ stat: FileStat, content: string }> {
+        const myseq = this.seq++;
+        console.log('resolveContent ' + uri + ' ' + myseq);
         const _uri = new URI(uri);
         const stat = await this.doGetStat(_uri, 0);
         if (!stat) {
@@ -83,10 +90,13 @@ export class FileSystemNode implements FileSystem {
         const encoding = await this.doGetEncoding(options);
         const contentBuffer = await fs.readFile(FileUri.fsPath(_uri));
         const content = iconv.decode(contentBuffer, encoding);
+        console.log('resolveContent Done' + uri + ' ' + myseq);
         return { stat, content };
     }
 
     async setContent(file: FileStat, content: string, options?: { encoding?: string }): Promise<FileStat> {
+        const myseq = this.seq++;
+        console.log('setContent ' + file.uri + ' ' + myseq);
         const _uri = new URI(file.uri);
         const stat = await this.doGetStat(_uri, 0);
         if (!stat) {
@@ -102,6 +112,7 @@ export class FileSystemNode implements FileSystem {
         const encodedContent = iconv.encode(content, encoding);
         await fs.writeFile(FileUri.fsPath(_uri), encodedContent);
         const newStat = await this.doGetStat(_uri, 1);
+        console.log('setContent Done' + file.uri + ' ' + myseq);
         if (newStat) {
             return newStat;
         }
@@ -109,6 +120,8 @@ export class FileSystemNode implements FileSystem {
     }
 
     async updateContent(file: FileStat, contentChanges: TextDocumentContentChangeEvent[], options?: { encoding?: string, overwriteEncoding?: string }): Promise<FileStat> {
+        const myseq = this.seq++;
+        console.log('updateContent ' + file.uri + ' ' + myseq);
         const _uri = new URI(file.uri);
         const stat = await this.doGetStat(_uri, 0);
         if (!stat) {
@@ -131,6 +144,7 @@ export class FileSystemNode implements FileSystem {
         const encodedNewContent = iconv.encode(newContent, writeEncoding);
         await fs.writeFile(FileUri.fsPath(_uri), encodedNewContent);
         const newStat = await this.doGetStat(_uri, 1);
+        console.log('updateContentDone ' + file.uri + ' ' + myseq);
         if (newStat) {
             return newStat;
         }
@@ -138,6 +152,7 @@ export class FileSystemNode implements FileSystem {
     }
 
     protected applyContentChanges(content: string, contentChanges: TextDocumentContentChangeEvent[]): string {
+        console.log('applyContentChanges ');
         let document = TextDocument.create('', '', 1, content);
         for (const change of contentChanges) {
             let newContent: string;
@@ -169,6 +184,7 @@ export class FileSystemNode implements FileSystem {
     }
 
     async move(sourceUri: string, targetUri: string, options?: FileMoveOptions): Promise<FileStat> {
+        console.log('move ' + sourceUri);
         if (this.client) {
             this.client.onWillMove(sourceUri, targetUri);
         }
@@ -229,6 +245,7 @@ export class FileSystemNode implements FileSystem {
     }
 
     async copy(sourceUri: string, targetUri: string, options?: { overwrite?: boolean, recursive?: boolean }): Promise<FileStat> {
+        console.log('copy ' + sourceUri);
         const _sourceUri = new URI(sourceUri);
         const _targetUri = new URI(targetUri);
         const [sourceStat, targetStat, overwrite, recursive] = await Promise.all([
@@ -255,6 +272,7 @@ export class FileSystemNode implements FileSystem {
     }
 
     async createFile(uri: string, options?: { content?: string, encoding?: string }): Promise<FileStat> {
+        console.log('createFile ' + uri);
         const _uri = new URI(uri);
         const parentUri = _uri.parent;
         const [stat, parentStat] = await Promise.all([this.doGetStat(_uri, 0), this.doGetStat(parentUri, 0)]);
@@ -276,6 +294,7 @@ export class FileSystemNode implements FileSystem {
     }
 
     async createFolder(uri: string): Promise<FileStat> {
+        console.log('createFolder ' + uri);
         const _uri = new URI(uri);
         const stat = await this.doGetStat(_uri, 0);
         if (stat) {
@@ -293,6 +312,7 @@ export class FileSystemNode implements FileSystem {
     }
 
     async touchFile(uri: string): Promise<FileStat> {
+        console.log('touchFile ' + uri);
         const _uri = new URI(uri);
         const stat = await this.doGetStat(_uri, 0);
         if (!stat) {
@@ -312,6 +332,7 @@ export class FileSystemNode implements FileSystem {
     }
 
     async delete(uri: string, options?: FileDeleteOptions): Promise<void> {
+        console.log('delete ' + uri);
         const _uri = new URI(uri);
         const stat = await this.doGetStat(_uri, 0);
         if (!stat) {
@@ -347,6 +368,7 @@ export class FileSystemNode implements FileSystem {
     }
 
     async getEncoding(uri: string): Promise<string> {
+        console.log('getEncoding ' + uri);
         const _uri = new URI(uri);
         const stat = await this.doGetStat(_uri, 0);
         if (!stat) {
@@ -359,6 +381,7 @@ export class FileSystemNode implements FileSystem {
     }
 
     async guessEncoding(uri: string): Promise<string | undefined> {
+        console.log('guessEncoding ' + uri);
         const _uri = new URI(uri);
         const stat = await this.doGetStat(_uri, 0);
         if (!stat) {
@@ -371,6 +394,7 @@ export class FileSystemNode implements FileSystem {
     }
 
     async getRoots(): Promise<FileStat[]> {
+        console.log('getRoots ');
         const cwdRoot = paths.parse(process.cwd()).root;
         const rootUri = FileUri.create(cwdRoot);
         const root = await this.doGetStat(rootUri, 1);
@@ -381,10 +405,12 @@ export class FileSystemNode implements FileSystem {
     }
 
     async getCurrentUserHome(): Promise<FileStat | undefined> {
+        console.log('getCurrentUserHome ');
         return this.getFileStat(FileUri.create(os.homedir()).toString());
     }
 
     getDrives(): Promise<string[]> {
+        console.log('getDrives ');
         return new Promise<string[]>((resolve, reject) => {
             drivelist.list((error: Error, drives: { readonly mountpoints: { readonly path: string; }[] }[]) => {
                 if (error) {
@@ -425,6 +451,7 @@ export class FileSystemNode implements FileSystem {
     }
 
     async access(uri: string, mode: number = FileAccess.Constants.F_OK): Promise<boolean> {
+        console.log('access ' + uri);
         try {
             await fs.access(FileUri.fsPath(uri), mode);
             return true;
@@ -434,6 +461,7 @@ export class FileSystemNode implements FileSystem {
     }
 
     async getFsPath(uri: string): Promise<string | undefined> {
+        console.log('getFspath ' + uri);
         if (!uri.startsWith('file:/')) {
             return undefined;
         } else {
@@ -442,6 +470,7 @@ export class FileSystemNode implements FileSystem {
     }
 
     protected async doGetStat(uri: URI, depth: number): Promise<FileStat | undefined> {
+        // console.log('doGetStat ' + FileUri.fsPath(uri));
         try {
             const stats = await fs.stat(FileUri.fsPath(uri));
             if (stats.isDirectory()) {

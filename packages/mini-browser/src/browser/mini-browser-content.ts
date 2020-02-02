@@ -583,7 +583,7 @@ export class MiniBrowserContent extends BaseWidget {
                 if (showLoadIndicator) {
                     this.showLoadIndicator();
                 }
-                if (url.endsWith('.pdf')) {
+                if (location.endsWith('.pdf') || url.endsWith('.pdf')) {
                     this.pdfContainer.style.display = 'block';
                     this.frame.style.display = 'none';
                     PDFObject.embed(url, this.pdfContainer, {

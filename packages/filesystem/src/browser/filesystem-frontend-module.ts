@@ -18,8 +18,10 @@ import '../../src/browser/style/index.css';
 
 import { ContainerModule, interfaces } from 'inversify';
 import { ResourceResolver, CommandContribution } from '@theia/core/lib/common';
-import { WebSocketConnectionProvider, FrontendApplicationContribution, ConfirmDialog, LabelProviderContribution, LabelProvider } from '@theia/core/lib/browser';
-import { FileSystem, fileSystemPath, FileShouldOverwrite, FileStat } from '../common';
+import { /* WebSocketConnectionProvider, */ FrontendApplicationContribution, ConfirmDialog, LabelProviderContribution, LabelProvider } from '@theia/core/lib/browser';
+import {  FileSystem , /* fileSystemPath, */ FileShouldOverwrite, FileStat } from '../common';
+import { FileSystemWatcherServer } from '../common/filesystem-watcher-protocol';
+import { WorkspaceBrowserFileSystemWatcher } from './filesystem-browserfs-watcher';
 // import {
 //     fileSystemWatcherPath, FileSystemWatcherServer,
 //     FileSystemWatcherServerProxy, ReconnectingFileSystemWatcherServer
@@ -28,10 +30,12 @@ import { FileResourceResolver } from './file-resource';
 import { bindFileSystemPreferences } from './filesystem-preferences';
 import { FileSystemWatcher } from './filesystem-watcher';
 import { FileSystemFrontendContribution } from './filesystem-frontend-contribution';
-import { FileSystemProxyFactory } from './filesystem-proxy-factory';
+// import { FileSystemProxyFactory } from './filesystem-proxy-factory';
 import { FileUploadService } from './file-upload-service';
 import { FileTreeLabelProvider } from './file-tree/file-tree-label-provider';
 import URI from '@theia/core/lib/common/uri';
+import { BrowserFileSystem } from './filesystem-browserfs';
+import { S3StorageSystem } from './s3storagesystem';
 
 export default new ContainerModule(bind => {
     bindFileSystemPreferences(bind);
@@ -39,7 +43,7 @@ export default new ContainerModule(bind => {
     // bind(FileSystemWatcherServerProxy).toDynamicValue(ctx =>
     //     WebSocketConnectionProvider.createProxy(ctx.container, fileSystemWatcherPath)
     // );
-    // bind(FileSystemWatcherServer).to(ReconnectingFileSystemWatcherServer);
+    bind(FileSystemWatcherServer).to(WorkspaceBrowserFileSystemWatcher).inSingletonScope();
     bind(FileSystemWatcher).toSelf().inSingletonScope();
     bind(FileShouldOverwrite).toDynamicValue(context => async (file: FileStat, stat: FileStat): Promise<boolean> => {
         const labelProvider = context.container.get(LabelProvider);
@@ -52,11 +56,13 @@ export default new ContainerModule(bind => {
         return !!await dialog.open();
     }).inSingletonScope();
 
-    bind(FileSystemProxyFactory).toSelf();
-    bind(FileSystem).toDynamicValue(ctx => {
-        const proxyFactory = ctx.container.get(FileSystemProxyFactory);
-        return WebSocketConnectionProvider.createProxy(ctx.container, fileSystemPath, proxyFactory);
-    }).inSingletonScope();
+    // bind(FileSystemProxyFactory).toSelf();
+    // bind(FileSystem).toDynamicValue(ctx => {
+    //     const proxyFactory = ctx.container.get(FileSystemProxyFactory);
+    //     return WebSocketConnectionProvider.createProxy(ctx.container, fileSystemPath, proxyFactory);
+    // }).inSingletonScope();
+    bind(S3StorageSystem).toSelf().inSingletonScope();
+    bind(FileSystem).to(BrowserFileSystem).inSingletonScope();
 
     bindFileResource(bind);
 

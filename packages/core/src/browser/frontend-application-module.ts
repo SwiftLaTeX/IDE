@@ -24,7 +24,7 @@ import {
     bindContributionProvider,
     SelectionService,
     ResourceResolver,
-    CommandContribution, CommandRegistry, CommandService, /*commandServicePath,*/
+    CommandContribution, CommandRegistry, CommandService, /* commandServicePath, */
     MenuModelRegistry, MenuContribution,
     // MessageClient,
     InMemoryResources

@@ -13,14 +13,4 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
-
-
-import { LaTeXClientContribution } from './theia-latex-contribution';
-import { LanguageClientContribution } from '@theia/languages/lib/browser';
-import { ContainerModule } from 'inversify';
-
-export default new ContainerModule(bind => {
-    // add your contribution bindings here
-    bind(LaTeXClientContribution).toSelf().inSingletonScope();
-    bind(LanguageClientContribution).toDynamicValue(ctx => ctx.container.get(LaTeXClientContribution));
-});
+ 

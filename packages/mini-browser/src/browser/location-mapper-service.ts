@@ -73,53 +73,53 @@ export class LocationMapperService {
 
 }
 
-/**
- * HTTP location mapper.
- */
-@injectable()
-export class HttpLocationMapper implements LocationMapper {
+// /**
+//  * HTTP location mapper.
+//  */
+// @injectable()
+// export class HttpLocationMapper implements LocationMapper {
 
-    canHandle(location: string): MaybePromise<number> {
-        return location.startsWith('http://') ? 1 : 0;
-    }
+//     canHandle(location: string): MaybePromise<number> {
+//         return location.startsWith('http://') ? 1 : 0;
+//     }
 
-    map(location: string): MaybePromise<string> {
-        return location;
-    }
+//     map(location: string): MaybePromise<string> {
+//         return location;
+//     }
 
-}
+// }
 
-/**
- * HTTPS location mapper.
- */
-@injectable()
-export class HttpsLocationMapper implements LocationMapper {
+// /**
+//  * HTTPS location mapper.
+//  */
+// @injectable()
+// export class HttpsLocationMapper implements LocationMapper {
 
-    canHandle(location: string): MaybePromise<number> {
-        return location.startsWith('https://') ? 1 : 0;
-    }
+//     canHandle(location: string): MaybePromise<number> {
+//         return location.startsWith('https://') ? 1 : 0;
+//     }
 
-    map(location: string): MaybePromise<string> {
-        return location;
-    }
+//     map(location: string): MaybePromise<string> {
+//         return location;
+//     }
 
-}
+// }
 
-/**
- * Location mapper for locations without a scheme.
- */
-@injectable()
-export class LocationWithoutSchemeMapper implements LocationMapper {
+// /**
+//  * Location mapper for locations without a scheme.
+//  */
+// @injectable()
+// export class LocationWithoutSchemeMapper implements LocationMapper {
 
-    canHandle(location: string): MaybePromise<number> {
-        return new URI(location).scheme === '' ? 1 : 0;
-    }
+//     canHandle(location: string): MaybePromise<number> {
+//         return new URI(location).scheme === '' ? 1 : 0;
+//     }
 
-    map(location: string): MaybePromise<string> {
-        return `http://${location}`;
-    }
+//     map(location: string): MaybePromise<string> {
+//         return `http://${location}`;
+//     }
 
-}
+// }
 
 /**
  * `file` URI location mapper.
@@ -132,15 +132,49 @@ export class FileLocationMapper implements LocationMapper {
     }
 
     map(location: string): MaybePromise<string> {
+        const ENDPOINT = 'https://s3.swiftlatex.com/swiftlatex/';
         const uri = new URI(location);
         if (uri.scheme !== 'file') {
             throw new Error(`Only URIs with 'file' scheme can be mapped to an URL. URI was: ${uri}.`);
         }
-        let rawLocation = uri.path.toString();
-        if (rawLocation.charAt(0) === '/') {
-            rawLocation = rawLocation.substr(1);
+        const dstPath = location.substr(7);
+        /* eslint-disable @typescript-eslint/no-explicit-any */
+        const prefix = (<any>window)._PREFIX;
+        const contentType = this.guessContentType(location);
+        return ENDPOINT + prefix + dstPath + '?response-content-type=' + contentType;
+        // let rawLocation = uri.path.toString();
+        // if (rawLocation.charAt(0) === '/') {
+        //     rawLocation = rawLocation.substr(1);
+        // }
+        // return new MiniBrowserEndpoint().getRestUrl().resolve(rawLocation).toString();
+    }
+
+    protected guessContentType(path: string): string {
+        if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+            return 'image/jpeg';
         }
-        return new MiniBrowserEndpoint().getRestUrl().resolve(rawLocation).toString();
+
+        if (path.endsWith('.bmp')) {
+            return 'image/bmp';
+        }
+
+        if (path.endsWith('.png')) {
+            return 'image/png';
+        }
+
+        if (path.endsWith('.gif')) {
+            return 'image/gif';
+        }
+
+        if (path.endsWith('.svg')) {
+            return 'image/svg+xml';
+        }
+
+        if (path.endsWith('.pdf')) {
+            return 'application/pdf';
+        }
+
+        return 'application/octet-stream';
     }
 
 }

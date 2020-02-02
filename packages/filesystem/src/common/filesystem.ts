@@ -152,6 +152,7 @@ export interface FileSystem extends JsonRpcServer<FileSystemClient> {
      * interact with the OS, e.g. when running a command on the shell.
      */
     getFsPath(uri: string): Promise<string | undefined>
+
 }
 
 export namespace FileAccess {

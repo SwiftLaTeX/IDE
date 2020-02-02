@@ -22,11 +22,13 @@ import { CancellationTokenSource, CancellationToken, checkCancelled, cancelled }
 import { Deferred } from '@theia/core/lib/common/promise-util';
 import { MessageService } from '@theia/core/lib/common/message-service';
 import { Progress } from '@theia/core/lib/common/message-service-protocol';
-import { Endpoint } from '@theia/core/lib/browser/endpoint';
-
+// import { Endpoint } from '@theia/core/lib/browser/endpoint';
+import { S3StorageSystem } from './s3storagesystem';
+import * as path from 'path';
 import throttle = require('lodash.throttle');
 
-const maxChunkSize = 64 * 1024;
+const MAXFILESIZE = 2048 * 1023;
+const MAXFILENUMBER = 128;
 
 export interface FileUploadParams {
     source?: DataTransfer
@@ -49,6 +51,9 @@ export class FileUploadService {
 
     @inject(MessageService)
     protected readonly messageService: MessageService;
+
+    @inject(S3StorageSystem)
+    protected readonly s3fs: S3StorageSystem;
 
     protected uploadForm: FileUploadService.Form;
 
@@ -121,110 +126,103 @@ export class FileUploadService {
             work: { done, total }
         }), 60);
         const deferredUpload = new Deferred<FileUploadResult>();
-        const endpoint = new Endpoint({ path: '/file-upload' });
-        const socketOpen = new Deferred<void>();
-        const socket = new WebSocket(endpoint.getWebSocketUrl().toString());
-        socket.onerror = e => {
-            socketOpen.reject(e);
-            deferredUpload.reject(e);
-        };
-        socket.onclose = ({ code, reason }) => deferredUpload.reject(new Error(String(reason || code)));
-        socket.onmessage = ({ data }) => {
-            const response = JSON.parse(data);
-            if (response.uri) {
-                doneFiles++;
-                result.uploaded.push(response.uri);
-                reportProgress();
-                if (onDidUpload) {
-                    onDidUpload(response.uri);
-                }
-                return;
-            }
-            if (response.done) {
-                done = response.done;
-                reportProgress();
-                return;
-            }
-            if (response.ok) {
-                deferredUpload.resolve(result);
-            } else if (response.error) {
-                deferredUpload.reject(new Error(response.error));
-            } else {
-                console.error('unknown upload response: ' + response);
-            }
-            socket.close();
-        };
-        socket.onopen = () => socketOpen.resolve();
-        const rejectAndClose = (e: Error) => {
-            deferredUpload.reject(e);
-            if (socket.readyState === 1) {
-                socket.close();
-            }
-        };
-        token.onCancellationRequested(() => rejectAndClose(cancelled()));
+        // const endpoint = new Endpoint({ path: '/file-upload' });
+        // const socketOpen = new Deferred<void>();
+        // const socket = new WebSocket(endpoint.getWebSocketUrl().toString());
+        // socket.onerror = e => {
+        //     socketOpen.reject(e);
+        //     deferredUpload.reject(e);
+        // };
+        // socket.onclose = ({ code, reason }) => deferredUpload.reject(new Error(String(reason || code)));
+        // socket.onmessage = ({ data }) => {
+        //     const response = JSON.parse(data);
+        //     if (response.uri) {
+        //         doneFiles++;
+        //         result.uploaded.push(response.uri);
+        //         reportProgress();
+        //         if (onDidUpload) {
+        //             onDidUpload(response.uri);
+        //         }
+        //         return;
+        //     }
+        //     if (response.done) {
+        //         done = response.done;
+        //         reportProgress();
+        //         return;
+        //     }
+        //     if (response.ok) {
+        //         deferredUpload.resolve(result);
+        //     } else if (response.error) {
+        //         deferredUpload.reject(new Error(response.error));
+        //     } else {
+        //         console.error('unknown upload response: ' + response);
+        //     }
+        //     socket.close();
+        // };
+        // socket.onopen = () => socketOpen.resolve();
+        // const rejectAndClose = (e: Error) => {
+        //     deferredUpload.reject(e);
+        //     if (socket.readyState === 1) {
+        //         socket.close();
+        //     }
+        // };
+        token.onCancellationRequested(() => deferredUpload.reject(cancelled()));
         try {
-            let queue = Promise.resolve();
+            const urilist: URI[] = [];
+            const filelist: File[] = [];
             await this.index(targetUri, source, {
                 token,
                 progress,
                 accept: async ({ uri, file }) => {
+                    if (totalFiles > MAXFILENUMBER) {
+                        return;
+                    }
                     total += file.size;
                     totalFiles++;
-                    reportProgress();
-                    queue = queue.then(async () => {
-                        try {
-                            await socketOpen.promise;
-                            checkCancelled(token);
-                            let readBytes = 0;
-                            socket.send(JSON.stringify({ uri: uri.toString(), size: file.size }));
-                            if (file.size) {
-                                do {
-                                    const fileSlice = await this.readFileSlice(file, readBytes);
-                                    checkCancelled(token);
-                                    readBytes = fileSlice.read;
-                                    socket.send(fileSlice.content);
-                                    while (socket.bufferedAmount > maxChunkSize * 2) {
-                                        await new Promise(resolve => setImmediate(resolve));
-                                        checkCancelled(token);
-                                    }
-                                } while (readBytes < file.size);
-                            }
-                        } catch (e) {
-                            rejectAndClose(e);
-                        }
-                    });
+                    urilist.push(uri);
+                    filelist.push(file);
                 }
             });
-            await queue;
-            await socketOpen.promise;
-            socket.send(JSON.stringify({ ok: true }));
+
+            reportProgress();
+            for (let i = 0; i < totalFiles; i ++) {
+                checkCancelled(token);
+                try {
+                    const uri = urilist[i];
+                    const file = filelist[i];
+                    if (file.size > 0 && file.size < MAXFILESIZE) {
+                        const dstPathWithScheme = uri.toString();
+                        const dstPath = uri.toString().substr(7);
+                        console.log('uploading ' + dstPath);
+                        const content = await new Promise((resolve, reject) => {
+                            const fr = new FileReader();
+                            fr.onload = () => {
+                                resolve(fr.result);
+                            };
+                            fr.readAsArrayBuffer(file);
+                        });
+                        // console.log('ensuring ' + polyDirname(dstPath));
+                        await this.s3fs.ensureDirExist(path.dirname(dstPath));
+                        // console.log('writing ' + content);
+                        await this.s3fs.writeFile(dstPath, new Uint8Array(<ArrayBuffer>content));
+                        // await new Promise(resolve => setTimeout(resolve, 3000));
+                        done += file.size;
+                        doneFiles++;
+                        result.uploaded.push(dstPathWithScheme);
+                        reportProgress();
+                        if (onDidUpload) {
+                            onDidUpload(dstPathWithScheme);
+                        }
+                    }
+                } catch (e) {
+                    deferredUpload.reject(e);
+                }
+            }
+            deferredUpload.resolve(result);
         } catch (e) {
-            rejectAndClose(e);
+            deferredUpload.reject(e);
         }
         return deferredUpload.promise;
-    }
-
-    protected readFileSlice(file: File, read: number): Promise<{
-        content: ArrayBuffer
-        read: number
-    }> {
-        return new Promise((resolve, reject) => {
-            const bytesLeft = file.size - read;
-            if (!bytesLeft) {
-                reject(new Error('nothing to read'));
-                return;
-            }
-            const size = Math.min(maxChunkSize, bytesLeft);
-            const slice = file.slice(read, read + size);
-            const reader = new FileReader();
-            reader.onload = () => {
-                read += size;
-                const content = reader.result as ArrayBuffer;
-                resolve({ content, read });
-            };
-            reader.onerror = reject;
-            reader.readAsArrayBuffer(slice);
-        });
     }
 
     protected async withProgress<T>(
@@ -338,6 +336,7 @@ export class FileUploadService {
     }
 
     protected async indexFileEntry(targetUri: URI, entry: WebKitFileEntry, context: FileUploadService.Context): Promise<void> {
+        checkCancelled(context.token);
         await new Promise<void>((resolve, reject) => {
             try {
                 entry.file(

@@ -89,17 +89,17 @@ export class WorkspaceFrontendContribution implements CommandContribution, Keybi
             isEnabled: () => true,
             execute: () => this.doOpenFolder()
         });
-        commands.registerCommand(WorkspaceCommands.OPEN_WORKSPACE, {
-            isEnabled: () => true,
-            execute: () => this.doOpenWorkspace()
-        });
+        // commands.registerCommand(WorkspaceCommands.OPEN_WORKSPACE, {
+        //     isEnabled: () => true,
+        //     execute: () => this.doOpenWorkspace()
+        // });
         commands.registerCommand(WorkspaceCommands.CLOSE, {
             isEnabled: () => this.workspaceService.opened,
             execute: () => this.closeWorkspace()
         });
-        commands.registerCommand(WorkspaceCommands.OPEN_RECENT_WORKSPACE, {
-            execute: () => this.quickOpenWorkspace.select()
-        });
+        // commands.registerCommand(WorkspaceCommands.OPEN_RECENT_WORKSPACE, {
+        //     execute: () => this.quickOpenWorkspace.select()
+        // });
         commands.registerCommand(WorkspaceCommands.SAVE_WORKSPACE_AS, {
             isEnabled: () => this.workspaceService.isMultiRootWorkspaceEnabled,
             execute: () => this.saveWorkspaceAs()
@@ -129,14 +129,14 @@ export class WorkspaceFrontendContribution implements CommandContribution, Keybi
                 order: 'a02'
             });
         }
-        menus.registerMenuAction(CommonMenus.FILE_OPEN, {
-            commandId: WorkspaceCommands.OPEN_WORKSPACE.id,
-            order: 'a10'
-        });
-        menus.registerMenuAction(CommonMenus.FILE_OPEN, {
-            commandId: WorkspaceCommands.OPEN_RECENT_WORKSPACE.id,
-            order: 'a20'
-        });
+        // menus.registerMenuAction(CommonMenus.FILE_OPEN, {
+        //     commandId: WorkspaceCommands.OPEN_WORKSPACE.id,
+        //     order: 'a10'
+        // });
+        // menus.registerMenuAction(CommonMenus.FILE_OPEN, {
+        //     commandId: WorkspaceCommands.OPEN_RECENT_WORKSPACE.id,
+        //     order: 'a20'
+        // });
         menus.registerMenuAction(CommonMenus.FILE_OPEN, {
             commandId: WorkspaceCommands.SAVE_WORKSPACE_AS.id,
             order: 'a30'
@@ -166,14 +166,14 @@ export class WorkspaceFrontendContribution implements CommandContribution, Keybi
                 keybinding: 'ctrl+k ctrl+o',
             });
         }
-        keybindings.registerKeybinding({
-            command: WorkspaceCommands.OPEN_WORKSPACE.id,
-            keybinding: 'ctrlcmd+alt+w',
-        });
-        keybindings.registerKeybinding({
-            command: WorkspaceCommands.OPEN_RECENT_WORKSPACE.id,
-            keybinding: 'ctrlcmd+alt+r',
-        });
+        // keybindings.registerKeybinding({
+        //     command: WorkspaceCommands.OPEN_WORKSPACE.id,
+        //     keybinding: 'ctrlcmd+alt+w',
+        // });
+        // keybindings.registerKeybinding({
+        //     command: WorkspaceCommands.OPEN_RECENT_WORKSPACE.id,
+        //     keybinding: 'ctrlcmd+alt+r',
+        // });
         keybindings.registerKeybinding({
             command: WorkspaceCommands.SAVE_AS.id,
             keybinding: 'ctrlcmd+shift+s',

@@ -1,0 +1,607 @@
+/* eslint-disable @typescript-eslint/tslint/config */
+/********************************************************************************
+ * Copyright (C) 2019 Gerald Weber and Elliott Wen.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ ********************************************************************************/
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { injectable, inject } from 'inversify';
+import * as S3 from 'aws-sdk/clients/s3';
+import * as JSZIP from 'jszip';
+import * as path from 'path';
+import { FileSystemWatcherServer } from '../common/filesystem-watcher-protocol';
+
+/*
+ * Minio can not end a file with '/', we need a marker, this client is designed only for Minio
+ * For s3, a conflicted solution is needed to tell whether a file is a dir or file.
+ * For S3, a more work is needed. Do not use it in S3 right now. A possible solution is to use ETag
+ * for directory distinguish
+ */
+const DIR_MARKER = '.__D1r__MaRkEr__D7m2Rj0__1gN0ReD__';
+
+/**
+ * Configuration options for file system.
+ */
+export class S3StorageSystemOptions {
+    // The name of this file system. You can have multiple IndexedDB file systems operating
+    // at once, but each must have a different name.
+    public bucket: string = 'swiftlatex';
+    public prefix: string = '';
+    // The Key, Secret, Token
+    public apiKey: string = '';
+    public apiSecret: string = '';
+    public sessionToken: string = '';
+    public endpoint: string = '';
+    public expiry: number = 0;
+    // The size of the inode cache. Defaults to 100. A size of 0 or below disables caching.
+}
+
+interface Dictionary<T> {
+    [key: string]: T;
+}
+
+/**
+ * FileStat
+ */
+export class S3Object {
+    public modifiedTime: Date = new Date();
+    public isDir: boolean = false;
+    public ETag: string = '';
+    public size: number = 0;
+    public meta: Dictionary<string> = {};
+    public data: Uint8Array | string | undefined = undefined;
+    public key: string = '';
+}
+
+/**
+ * Configuration options for file system. All APIs do not accpet parameter ends with '/'
+ */
+@injectable()
+export class S3StorageSystem {
+    private s3: S3 | undefined  = undefined;
+
+    private opts: S3StorageSystemOptions = new S3StorageSystemOptions();;
+
+    private s3lock: boolean = false;
+
+    @inject(FileSystemWatcherServer)
+    private readonly fileSystemWatcherServer: FileSystemWatcherServer;
+
+    constructor() {
+    }
+
+    /* Stat a file or dir, one or two API turnaround*/
+    public async stat(p: string): Promise<S3Object | undefined> {
+        // console.log('stat ' + p);
+        /* Base Case */
+        if (p === '/') {
+            const dirobj = new S3Object();
+            dirobj.isDir = true;
+            dirobj.key = p;
+            return dirobj;
+        }
+
+        /* Check File */
+        const fileStat = await this._headObject(p);
+        if (fileStat) {
+            return fileStat;
+        }
+
+        /* Check Dir, for S3, this step can be optimized */
+        const dirStat = await this._headObject(p + '/' + DIR_MARKER);
+        if (dirStat) {
+            /* Return a proper dir key stat */
+            dirStat.isDir = true;
+            dirStat.size = 0;
+            dirStat.key = p;
+            return dirStat;
+        }
+
+        /* Not found */
+        return undefined;
+    }
+
+    /* Very heavy API, built on top of a public API stat */
+    public async copy(p: string, newPath: string, isRename: boolean = false): Promise<void> {
+        // console.log('copy ' + p + ' to ' + newPath);
+        /* Base case */
+        if (p === '/') {
+            throw Error('cannot rename/copy root folder /');
+        }
+
+        if (p === newPath) {
+            throw Error('Src and Dst are the same');
+        }
+
+        /* Check origin file exists and tell whether it is a file */
+        const obj = await this.stat(p);
+        if (!obj) {
+            throw Error(`File or Directory ${p} does not exists`);
+        }
+
+        /* Check whether dst is writable */
+        const dstParentPath = path.dirname(newPath);
+        const dstParentObj = await this.stat(dstParentPath);
+        if (!dstParentObj) {
+            throw Error(`Directory ${dstParentPath} does no exists`);
+        }
+
+        const dstObj = await this.stat(newPath);
+        if (dstObj) {
+            if (dstObj.isDir !== obj.isDir) {
+                throw Error('Cannot copy a file to a directory or the other way around');
+            }
+        }
+
+        /* If it is a file */
+        if (!obj.isDir) {
+            await this._copyObject(p, newPath);
+            if (isRename) {
+                await this._deleteObjects([p]);
+            }
+        } else {
+            /* Supper Heavy Copy, extra care */
+            const listParam = p + (p === '/' ? '' : '/');
+            const listResult = await this._listObjects(listParam, true);
+
+            /* We need to copy marker first to prevent filesystem corruption*/
+            const markers: string[] = [];
+            const delkeys: string[] = [];
+            const objkeys: string[] = [];
+            listResult.forEach(v => {
+                delkeys.push(v.key);
+                if (v.key.endsWith(DIR_MARKER)) {
+                    markers.push(v.key);
+                } else {
+                    objkeys.push(v.key);
+                }
+            });
+
+            /* Sort them from parent to children */
+            markers.sort((a, b) => {
+                if ((a.match(/\//g) || []).length > (b.match(/\//g) || []).length) {
+                    return 1;
+                } else {
+                    return -1;
+                }
+            });
+
+            for (let i = 0; i < markers.length; i++) {
+                const v = markers[i];
+                const dst = newPath + v.substring(p.length);
+                // console.log('Copying marker ' + v + ' to ' + dst);
+                await this._copyObject(v, dst);
+            }
+
+            for (let i = 0; i < objkeys.length; i++) {
+                const v = objkeys[i];
+                const dst = newPath + v.substring(p.length);
+                // console.log('Copying object ' + v + ' to ' + dst);
+                await this._copyObject(v, dst);
+            }
+
+            if (isRename) {
+                await this._deleteObjects(delkeys);
+            }
+        }
+        (<any>this.fileSystemWatcherServer).kernel_notify(newPath, 1);
+    }
+
+    /* Zip a dir, heavy api */
+    public async zipDir(p: string): Promise<Uint8Array> {
+        console.log('zipDir ' + p);
+        if (p !== '/') {
+            const marker = p + '/' + DIR_MARKER;
+            const dirStat = await this._headObject(marker);
+            if (!dirStat) {
+                throw Error(`Directory ${p} no exists`);
+            }
+        }
+
+        /* Handle Slash Problem */
+        const listParam = p + (p === '/' ? '' : '/');
+        const listResult = await this._listObjects(listParam, true);
+        const zipobj = new JSZIP();
+        const toDownloadKeys: string[] = [];
+        listResult.forEach(v => {
+            if(!v.key.endsWith(DIR_MARKER)) {
+                toDownloadKeys.push(v.key);
+            }
+        });
+
+        for(let j = 0; j < toDownloadKeys.length; j++) {
+            const s3obj = await this._getObject(toDownloadKeys[j]);
+            zipobj.file(toDownloadKeys[j], s3obj.data!);
+        }
+
+        const buf = await zipobj.generateAsync({type: 'uint8array'});
+        return buf;
+    }
+
+    /* Read dir, one api turnaround , a little bit hack to reduce the turnaround */
+    public async readDir(p: string): Promise<S3Object[]> {
+        /* Handle Slash Problem */
+        const listParam = p + (p === '/' ? '' : '/');
+        const listResult = await this._listObjects(listParam);
+        const res: S3Object[] = [];
+        let markerFound: boolean = false;
+        if (p === '/') {
+            markerFound = true;
+        }
+        listResult.forEach(v => {
+            if (!v.key.endsWith(DIR_MARKER)) {
+                res.push(v);
+            } else {
+                markerFound = true;
+            }
+        });
+        /* Extra filesystme corruption check */
+        if (markerFound) {
+            return res;
+        }
+        throw Error(`Directory ${p} no exists`);
+    }
+
+    public async ensureDirExist(p: string): Promise<void> {
+        /* To prevent endless recursive */
+        if (p === '/' || p === '.' || p === '') {
+            return;
+        }
+        const s3stat = await this._headObject(p + '/' + DIR_MARKER);
+        if (s3stat) {
+            return;
+        }
+        const parentDir = path.dirname(p);
+        await this.ensureDirExist(parentDir);
+        await this.mkdir(p);
+    }
+
+    public async mkdir(p: string): Promise<void> {
+        // console.log('mkdir ' + p);
+        /* Base Case */
+        if (p === '/') {
+            throw Error('Directory / already exists');
+        }
+        const parentDir = path.dirname(p);
+
+        if (parentDir !== '/') {
+            /* Check ParentDir Exists */
+            const parentDirMarker = parentDir + '/' + DIR_MARKER;
+            const parentFileStat = await this._headObject(parentDirMarker);
+            if (!parentFileStat) {
+                throw Error(`Directory ${parentDir} does not exists`);
+            }
+        }
+
+        /* Check existing directoy */
+        const targetDirMarker = p + '/' + DIR_MARKER;
+        const targetDirStat = await this._headObject(targetDirMarker);
+        if (targetDirStat) {
+            throw Error(`File ${p} already exists, cannot create file with the same name`);
+        }
+
+        /* Ok to go */
+        const obj = new S3Object();
+        obj.data = 'd';
+        obj.isDir = true; /* Useless */
+        await this._putObject(targetDirMarker, obj);
+        // (<any>this.fileSystemWatcherServer).kernel_notify('/');
+        (<any>this.fileSystemWatcherServer).kernel_notify(p, 1);
+    }
+
+    /* Two turn around */
+    public async writeFile(p: string, data: string | Uint8Array): Promise<void> {
+        // console.log('writeFile ' + p);
+        /* Base Case */
+        if (p === '/') {
+            throw Error('Directory / is not writable');
+        }
+        /* Check parent exists */
+        const parentDir = path.dirname(p);
+        if (parentDir !== '/') {
+            const parentDirMarker = parentDir + '/' + DIR_MARKER;
+            const parentFileStat = await this._headObject(parentDirMarker);
+            if (!parentFileStat) {
+                throw Error(`Directory ${parentDir} no exists`);
+            }
+        }
+
+        let alreadyExist = false;
+        /* Check file already exist, for performance purpose, not costly because of cache */
+        const existingFileStat = await this._headObject(p);
+        if (existingFileStat) {
+            alreadyExist = true;
+        }
+
+        /* Ready to go*/
+        const obj = new S3Object();
+        obj.data = data;
+        await this._putObject(p, obj);
+
+        /* Notify Watcher */
+        if (alreadyExist) {
+            (<any>this.fileSystemWatcherServer).kernel_notify(p, 0);
+        } else {
+            (<any>this.fileSystemWatcherServer).kernel_notify(p, 1);
+        }
+    }
+
+    public async deleteFile(p: string): Promise<void> {
+        // console.log('deleteFile ' + p);
+        /* Base Case */
+        if (p === '/') {
+            throw Error('Directory / is not writable');
+        }
+        const obj = await this._headObject(p);
+        if (obj) {
+            await this._deleteObjects([p]);
+        } else {
+            throw Error(`File ${p} no exists`);
+        }
+        (<any>this.fileSystemWatcherServer).kernel_notify(p, 2);
+    }
+
+    /* Delete file three turnaround, very rarely used, so no optimization */
+    public async deleteFolder(p: string, recursive: boolean): Promise<void> {
+        // console.log('deleteFolder ' + p);
+        /* Base Case */
+        if (p === '/') {
+            throw Error('Directory / cannot be deleted');
+        }
+        const obj = await this._headObject(p + '/' + DIR_MARKER);
+        if (!obj) {
+            throw Error(`Directory ${p} no exists`);
+        }
+        /* get children */
+
+        const children = await this._listObjects(p + '/', recursive);
+        if (!recursive && children.length > 1) {
+            throw Error(`Directory ${p} no empty`);
+        }
+        /* Delete the marker, so the minio will automatic clean the folder */
+        const ids: string[] = [];
+        children.forEach(v => {
+            ids.push(v.key);
+        });
+        await this._deleteObjects(ids);
+        (<any>this.fileSystemWatcherServer).kernel_notify(p, 2);
+    }
+
+    /* Optimized for fast read, one turn around */
+    public async readFile(p: string): Promise<string | Uint8Array> {
+        // console.log('ReadFile ' + p);
+        /* Base Case */
+        if (p === '/') {
+            throw Error('Directory / is not readable');
+        }
+        const obj = await this._getObject(p);
+        return obj.data!;
+    }
+
+    /* Check whether it is key available */
+    public async _headObject(key: string): Promise<S3Object | undefined> {
+        await this._lock();
+        await this._prepareLocked();
+        try {
+            const headResult = await this.s3!
+                .headObject({
+                    Bucket: this.opts.bucket,
+                    Key: this.opts.prefix + key
+                })
+                .promise();
+            const filestat = new S3Object();
+            filestat.meta = headResult.Metadata || {};
+            filestat.ETag = headResult.ETag!;
+            filestat.size = headResult.ContentLength!;
+            filestat.modifiedTime = headResult.LastModified!;
+            filestat.key = key;
+            return filestat;
+        } catch (err) {
+            if (err.code === 'NotFound') {
+                return undefined;
+            }
+            console.log(err);
+            throw err;
+        } finally {
+            this._unlock();
+        }
+    }
+
+    /* Get object */
+    public async _getObject(key: string): Promise<S3Object> {
+        await this._lock();
+        await this._prepareLocked();
+        try {
+            const getResult = await this.s3!
+                .getObject({
+                    Bucket: this.opts.bucket,
+                    Key: this.opts.prefix + key
+                })
+                .promise();
+            const obj = new S3Object();
+            obj.size = getResult.ContentLength!;
+            obj.ETag = getResult.ETag!;
+            obj.data = <Uint8Array>getResult.Body!;
+            obj.modifiedTime = getResult.LastModified!;
+            obj.meta = getResult.Metadata || {};
+            obj.key = key;
+            return obj;
+        } catch (e) {
+            console.log(e);
+            throw e;
+        } finally {
+            this._unlock();
+        }
+    }
+
+    /* Put object */
+    public async _putObject(key: string, obj: S3Object): Promise<void> {
+        const s3CompatMeta: Dictionary<string> = {};
+        if (obj.meta) {
+            for (const metaKey in obj.meta) {
+                if (obj.meta.hasOwnProperty(metaKey)) {
+                    s3CompatMeta['x-amz-meta-' + metaKey] = obj.meta[metaKey];
+                }
+            }
+        }
+        await this._lock();
+        await this._prepareLocked();
+        try {
+            await this.s3!.putObject({
+                Body: obj.data,
+                Bucket: this.opts.bucket,
+                Key: this.opts.prefix + key,
+                Metadata: s3CompatMeta,
+            }).promise();
+        } catch (e) {
+            console.log(e);
+            throw e;
+        } finally {
+            this._unlock();
+        }
+    }
+
+    /* List objects */
+    public async _listObjects(startswith: string, flat: boolean = false): Promise<S3Object[]> {
+        await this._lock();
+        await this._prepareLocked();
+        try {
+            const listResult = await this.s3!.listObjectsV2({
+                Delimiter: flat ? '' : '/',
+                Bucket: this.opts.bucket,
+                Prefix: this.opts.prefix + startswith,
+                MaxKeys: 1000,
+            }).promise();
+            const result: S3Object[] = [];
+            listResult.Contents!.forEach(v => {
+                const obj = new S3Object();
+                obj.ETag = v.ETag!;
+                obj.modifiedTime = v.LastModified!;
+                obj.size = v.Size!;
+                /* remove the prefix */
+                obj.key = v.Key!;
+                obj.key = obj.key.substring(this.opts.prefix.length);
+                result.push(obj);
+            });
+            listResult.CommonPrefixes!.forEach(v => {
+                const obj = new S3Object();
+                obj.isDir = true;
+                obj.key = v.Prefix!;
+                /* remove the prefix, list object API return the prefix */
+                obj.key = obj.key.substring(this.opts.prefix.length);
+                /* Remove the slash */
+                obj.key = obj.key.substring(0, obj.key.length - 1);
+                result.push(obj);
+            });
+            return result;
+        } catch (e) {
+            console.log(e);
+            throw e;
+        } finally {
+            this._unlock();
+        }
+    }
+
+    public async _deleteObjects(keys: string[]): Promise<void> {
+        const objsToDelete: { Key: string }[] = [];
+        keys.forEach(k => {
+            const item = { Key: this.opts.prefix + k };
+            objsToDelete.push(item);
+        });
+        await this._lock();
+        await this._prepareLocked();
+        try {
+            await this.s3!
+                .deleteObjects({
+                    Bucket: this.opts.bucket,
+                    Delete: {
+                        Objects: objsToDelete,
+                        Quiet: false,
+                    },
+                })
+                .promise();
+        } catch (e) {
+            console.log(e);
+            throw e;
+        } finally {
+            this._unlock();
+        }
+    }
+
+    private async _copyObject(srcKey: string, dstKey: string): Promise<void> {
+        await this._lock();
+        await this._prepareLocked();
+        try {
+            await this.s3!
+                .copyObject({
+                    Bucket: this.opts.bucket,
+                    CopySource: this.opts.bucket + '/' + this.opts.prefix + srcKey,
+                    Key: this.opts.prefix + dstKey,
+                })
+                .promise();
+        } catch (e) {
+            console.log(e);
+            throw e;
+        } finally {
+            this._unlock();
+        }
+    }
+
+    private async _lock(): Promise<void> {
+        while (this.s3lock) {
+            await new Promise(r => setTimeout(r, 100));
+        }
+        this.s3lock = true;
+    }
+
+    private _unlock(): void {
+        this.s3lock = false;
+    }
+
+    /* Assume Lock */
+    private async _prepareLocked(): Promise<void> {
+        if (Date.now() > this.opts.expiry) {
+            /* Need to renew */
+            this.s3 = undefined;
+            const creds = await fetch('/key');
+            const json_creds = await creds.json();
+            this.opts.apiKey = json_creds['_APIKEY'];
+            this.opts.apiSecret = json_creds['_APISECRET'];
+            this.opts.sessionToken = json_creds['_SESSIONTOKEN'];
+            this.opts.prefix = json_creds['_PREFIX'];
+            this.opts.expiry = json_creds['_EXPIRY'] * 1000;
+            this.opts.endpoint = json_creds['_ENDPOINT'];
+            if (!this.opts.apiKey) {
+                throw Error('Failed to obtain an api key');
+            }
+            if (!this.opts.prefix || this.opts.prefix.endsWith('/')) {
+                throw Error('Prefix should not be empty or endwith a slash.');
+            }
+            if(this.opts.expiry < Date.now()) {
+                /* Unlikely to happen */
+                throw Error('Please sync the time.');
+            }
+            /* Have a new client */
+            this.s3 = new S3({
+                accessKeyId: this.opts.apiKey,
+                secretAccessKey: this.opts.apiSecret,
+                sessionToken: this.opts.sessionToken,
+                endpoint: this.opts.endpoint,
+                s3ForcePathStyle: true,
+                signatureVersion: 'v4',
+            });
+            console.log('?');
+        }
+    }
+}
+

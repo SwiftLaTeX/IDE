@@ -59,8 +59,7 @@ export class BibTeXContribution implements LanguageGrammarDefinitionContribution
                 '.bib'
             ],
             'mimetypes': [
-                'text/bibtex',
-                'text/plain'
+                'text/bibtex'
             ]
         });
 

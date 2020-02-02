@@ -33,6 +33,7 @@ export interface FileSystemWatcherServer extends JsonRpcServer<FileSystemWatcher
      * Resolve when watching is stopped.
      */
     unwatchFileChanges(watcher: number): Promise<void>;
+
 }
 
 export interface FileSystemWatcherClient {

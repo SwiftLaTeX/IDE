@@ -46,7 +46,7 @@ export const filesystemPreferenceSchema: PreferenceSchema = {
         },
         'files.enableTrash': {
             'type': 'boolean',
-            'default': true,
+            'default': false,
             'description': 'Moves files/folders to the OS trash (recycle bin on Windows) when deleting. Disabling this will delete files/folders permanently.'
         },
         'files.associations': {

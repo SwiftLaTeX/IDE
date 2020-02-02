@@ -60,8 +60,7 @@ export class TeXContribution implements LanguageGrammarDefinitionContribution {
                 '.tex'
             ],
             'mimetypes': [
-                'text/latex',
-                'text/plain'
+                'text/latex'
             ]
         });
 

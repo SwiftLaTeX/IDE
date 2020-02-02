@@ -21,24 +21,25 @@ import URI from '@theia/core/lib/common/uri';
 import { OpenHandler } from '@theia/core/lib/browser/opener-service';
 import { WidgetFactory } from '@theia/core/lib/browser/widget-manager';
 import { bindContributionProvider } from '@theia/core/lib/common/contribution-provider';
-import { WebSocketConnectionProvider } from '@theia/core/lib/browser/messaging/ws-connection-provider';
+// import { WebSocketConnectionProvider } from '@theia/core/lib/browser/messaging/ws-connection-provider';
 import { FrontendApplicationContribution } from '@theia/core/lib/browser/frontend-application';
 import { TabBarToolbarContribution } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
 import { CommandContribution } from '@theia/core/lib/common/command';
 import { MenuContribution } from '@theia/core/lib/common/menu';
 import { NavigatableWidgetOptions } from '@theia/core/lib/browser/navigatable';
 import { MiniBrowserOpenHandler } from './mini-browser-open-handler';
-import { MiniBrowserService, MiniBrowserServicePath } from '../common/mini-browser-service';
+import { MiniBrowserService /* MiniBrowserServicePath */ } from '../common/mini-browser-service';
 import { MiniBrowser, MiniBrowserOptions } from './mini-browser';
 import { MiniBrowserProps, MiniBrowserContentFactory, MiniBrowserContent } from './mini-browser-content';
 import {
     LocationMapperService,
     FileLocationMapper,
-    HttpLocationMapper,
-    HttpsLocationMapper,
+    // HttpLocationMapper,
+    // HttpsLocationMapper,
     LocationMapper,
-    LocationWithoutSchemeMapper,
+    // LocationWithoutSchemeMapper,
 } from './location-mapper-service';
+import { MiniBrowserDummyServer } from './mini-browser-dummy-server';
 
 export default new ContainerModule(bind => {
 
@@ -71,11 +72,11 @@ export default new ContainerModule(bind => {
 
     bindContributionProvider(bind, LocationMapper);
     bind(LocationMapper).to(FileLocationMapper).inSingletonScope();
-    bind(LocationMapper).to(HttpLocationMapper).inSingletonScope();
-    bind(LocationMapper).to(HttpsLocationMapper).inSingletonScope();
-    bind(LocationWithoutSchemeMapper).toSelf().inSingletonScope();
-    bind(LocationMapper).toService(LocationWithoutSchemeMapper);
+    // bind(LocationMapper).to(HttpLocationMapper).inSingletonScope();
+    // bind(LocationMapper).to(HttpsLocationMapper).inSingletonScope();
+    // bind(LocationWithoutSchemeMapper).toSelf().inSingletonScope();
+    // bind(LocationMapper).toService(LocationWithoutSchemeMapper);
     bind(LocationMapperService).toSelf().inSingletonScope();
-
-    bind(MiniBrowserService).toDynamicValue(context => WebSocketConnectionProvider.createProxy(context.container, MiniBrowserServicePath)).inSingletonScope();
+    bind(MiniBrowserService).to(MiniBrowserDummyServer).inSingletonScope();
+    // bind(MiniBrowserService).toDynamicValue(context => WebSocketConnectionProvider.createProxy(context.container, MiniBrowserServicePath)).inSingletonScope();
 });

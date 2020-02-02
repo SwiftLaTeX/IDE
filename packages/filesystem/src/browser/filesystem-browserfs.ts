@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2017 TypeFox and others.
+ * Copyright (C) 2019 Elliott Wen and Gerald Weber.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -13,21 +13,14 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
-
-// import * as mv from 'mv';
-// import * as trash from 'trash';
-// import * as paths from 'path';
-// import * as fs from 'fs-extra';
-// import { v4 } from 'uuid';
-// import * as os from 'os';
-// import * as touch from 'touch';
 import { injectable, inject, optional } from 'inversify';
 import { TextDocument } from 'vscode-languageserver-types';
 import { TextDocumentContentChangeEvent } from 'vscode-languageserver-protocol';
 import URI from '@theia/core/lib/common/uri';
+import Uri from 'vscode-uri';
 import { TextDocumentContentChangeDelta } from '@theia/core/lib/common/lsp-types';
 import { FileStat, FileSystem, FileSystemClient, FileSystemError, FileMoveOptions, FileDeleteOptions, FileAccess } from '../common/filesystem';
-// import * as iconv from 'iconv-lite';
+import { S3StorageSystem, S3Object } from './s3storagesystem';
 
 @injectable()
 export class FileSystemBrowserOptions {
@@ -46,22 +39,30 @@ export class FileSystemBrowserOptions {
 
 }
 
-// class FileUri {
-//     public static create(fsPath_: string): URI {
-//         return new URI(fsPath_);
-//     }
+/* eslint-disable @typescript-eslint/no-explicit-any */
+namespace FileUriLite {
+    export function create(fsPath_: string): URI {
+        return new URI(Uri.file(fsPath_));
+    }
 
-//     public fsPath(uri: URI | string): string {
-
-//     }
-// };
+    export function fsPath(uri: URI | string): string {
+        if (typeof uri === 'string') {
+            return fsPath(new URI(uri));
+        } else {
+            const fsPathFromVsCodeUri = (uri as any).codeUri.fsPath;
+            return fsPathFromVsCodeUri;
+        }
+    }
+}
 
 @injectable()
-export class WorkspaceBrowserFileSystem implements FileSystem {
-
+export class BrowserFileSystem implements FileSystem {
+    // private _s3fs_lock: boolean;
     constructor(
-        @inject(FileSystemBrowserOptions) @optional() protected readonly options: FileSystemBrowserOptions = FileSystemBrowserOptions.DEFAULT
-    ) { }
+        @inject(FileSystemBrowserOptions) @optional() protected readonly options: FileSystemBrowserOptions = FileSystemBrowserOptions.DEFAULT,
+        @inject(S3StorageSystem) protected readonly _s3fs: S3StorageSystem
+    ) {
+    }
 
     protected client: FileSystemClient | undefined;
     setClient(client: FileSystemClient | undefined): void {
@@ -75,9 +76,12 @@ export class WorkspaceBrowserFileSystem implements FileSystem {
     }
 
     async exists(uri: string): Promise<boolean> {
-        // return fs.pathExists(FileUri.fsPath(new URI(uri)));
-        console.log('Unimplemented exists ' + uri);
-        return false;
+        const _uri = new URI(uri);
+        const stat = await this.doGetStat(_uri, 0);
+        if (!stat) {
+            return false;
+        }
+        return true;
     }
 
     async resolveContent(uri: string, options?: { encoding?: string }): Promise<{ stat: FileStat, content: string }> {
@@ -89,11 +93,13 @@ export class WorkspaceBrowserFileSystem implements FileSystem {
         if (stat.isDirectory) {
             throw FileSystemError.FileIsDirectory(uri, 'Cannot resolve the content.');
         }
-        throw FileSystemError.FileIsDirectory(uri, 'Not implemented resolveContent.');
-        // const encoding = await this.doGetEncoding(options);
-        // const contentBuffer = await fs.readFile(FileUri.fsPath(_uri));
-        // const content = iconv.decode(contentBuffer, encoding);
-        // return { stat, content };
+        const encoding = this.doGetEncoding(options);
+        if (encoding !== 'utf8') {
+            throw FileSystemError.FileExists(_uri, 'Unsupported File Encoding. ' + encoding);
+        }
+        const contentBuffer = await this._s3fs.readFile(FileUriLite.fsPath(_uri));
+        const content = contentBuffer.toString();
+        return { stat, content };
     }
 
     async setContent(file: FileStat, content: string, options?: { encoding?: string }): Promise<FileStat> {
@@ -105,18 +111,18 @@ export class WorkspaceBrowserFileSystem implements FileSystem {
         if (stat.isDirectory) {
             throw FileSystemError.FileIsDirectory(file.uri, 'Cannot set the content.');
         }
-        if (!(await this.isInSync(file, stat))) {
-            throw this.createOutOfSyncError(file, stat);
+        const encoding = this.doGetEncoding(options);
+        if (encoding !== 'utf8') {
+            throw FileSystemError.FileExists(_uri, 'Unsupported File Encoding. ' + encoding);
         }
-        throw FileSystemError.FileIsDirectory(file.uri, 'Not implemented setContent.');
-        // const encoding = await this.doGetEncoding(options);
         // const encodedContent = iconv.encode(content, encoding);
-        // await fs.writeFile(FileUri.fsPath(_uri), encodedContent);
-        // const newStat = await this.doGetStat(_uri, 1);
-        // if (newStat) {
-        //     return newStat;
-        // }
-        // throw FileSystemError.FileNotFound(file.uri, 'Error occurred while writing file content.');
+        await this._s3fs.writeFile(FileUriLite.fsPath(_uri), content);
+        const newStat = await this.doGetStat(_uri, 1);
+        if (newStat) {
+            return newStat;
+        }
+        // this.fileSystemWatcherServer.kernel_notify(file.uri);
+        throw FileSystemError.FileNotFound(file.uri, 'Error occurred while writing file content.');
     }
 
     async updateContent(file: FileStat, contentChanges: TextDocumentContentChangeEvent[], options?: { encoding?: string, overwriteEncoding?: string }): Promise<FileStat> {
@@ -128,25 +134,23 @@ export class WorkspaceBrowserFileSystem implements FileSystem {
         if (stat.isDirectory) {
             throw FileSystemError.FileIsDirectory(file.uri, 'Cannot set the content.');
         }
-        if (!this.checkInSync(file, stat)) {
-            throw this.createOutOfSyncError(file, stat);
-        }
         if (contentChanges.length === 0 && !(options && options.overwriteEncoding)) {
             return stat;
         }
-        throw FileSystemError.FileIsDirectory(file.uri, 'Not implemented updateContent');
-        // const encoding = await this.doGetEncoding(options);
-        // const contentBuffer = await fs.readFile(FileUri.fsPath(_uri));
-        // const content = iconv.decode(contentBuffer, encoding);
-        // const newContent = this.applyContentChanges(content, contentChanges);
-        // const writeEncoding = options && options.overwriteEncoding ? options.overwriteEncoding : encoding;
-        // const encodedNewContent = iconv.encode(newContent, writeEncoding);
-        // await fs.writeFile(FileUri.fsPath(_uri), encodedNewContent);
-        // const newStat = await this.doGetStat(_uri, 1);
-        // if (newStat) {
-        //     return newStat;
-        // }
-        // throw FileSystemError.FileNotFound(file.uri, 'Error occurred while writing file content.');
+        const encoding = this.doGetEncoding(options);
+        if (encoding !== 'utf8') {
+            throw FileSystemError.FileExists(_uri, 'Unsupported File Encoding. ' + encoding);
+        }
+        const contentBuffer = await this._s3fs.readFile(FileUriLite.fsPath(_uri));
+        const content = contentBuffer.toString();
+        const newContent = this.applyContentChanges(content, contentChanges);
+        await this._s3fs.writeFile(FileUriLite.fsPath(_uri), newContent);
+        const newStat = await this.doGetStat(_uri, 1);
+        if (newStat) {
+            return newStat;
+        }
+        // this.fileSystemWatcherServer.kernel_notify(file.uri);
+        throw FileSystemError.FileNotFound(file.uri, 'Error occurred while writing file content.');
     }
 
     protected applyContentChanges(content: string, contentChanges: TextDocumentContentChangeEvent[]): string {
@@ -165,21 +169,6 @@ export class WorkspaceBrowserFileSystem implements FileSystem {
         return document.getText();
     }
 
-    protected async isInSync(file: FileStat, stat: FileStat): Promise<boolean> {
-        if (this.checkInSync(file, stat)) {
-            return true;
-        }
-        return this.client ? this.client.shouldOverwrite(file, stat) : false;
-    }
-
-    protected checkInSync(file: FileStat, stat: FileStat): boolean {
-        return stat.lastModification === file.lastModification && stat.size === file.size;
-    }
-
-    protected createOutOfSyncError(file: FileStat, stat: FileStat): Error {
-        return FileSystemError.FileIsOutOfSync(file, stat);
-    }
-
     async move(sourceUri: string, targetUri: string, options?: FileMoveOptions): Promise<FileStat> {
         if (this.client) {
             this.client.onWillMove(sourceUri, targetUri);
@@ -191,181 +180,133 @@ export class WorkspaceBrowserFileSystem implements FileSystem {
         return result;
     }
     protected async doMove(sourceUri: string, targetUri: string, options?: FileMoveOptions): Promise<FileStat> {
-        throw FileSystemError.FileExists(targetUri, 'Not implemented doMove');
-
-        // const _sourceUri = new URI(sourceUri);
-        // const _targetUri = new URI(targetUri);
-        // const [sourceStat, targetStat, overwrite] = await Promise.all([this.doGetStat(_sourceUri, 1), this.doGetStat(_targetUri, 1), this.doGetOverwrite(options)]);
-        // if (!sourceStat) {
-        //     throw FileSystemError.FileNotFound(sourceUri);
-        // }
-        // if (targetStat && !overwrite) {
-        //     throw FileSystemError.FileExists(targetUri, "Did you set the 'overwrite' flag to true?");
-        // }
+        const _sourceUri = new URI(sourceUri);
+        const _targetUri = new URI(targetUri);
+        const overwrite = this.doGetOverwrite(options);
+        const [sourceStat, targetStat] = await Promise.all([this.doGetStat(_sourceUri, 1), this.doGetStat(_targetUri, 1)]);
+        if (!sourceStat) {
+            throw FileSystemError.FileNotFound(sourceUri);
+        }
+        if (targetStat && !overwrite) {
+            throw FileSystemError.FileExists(targetUri, "Did you set the 'overwrite' flag to true?");
+        }
         // Different types. Files <-> Directory.
-        // if (targetStat && sourceStat.isDirectory !== targetStat.isDirectory) {
-        //     if (targetStat.isDirectory) {
-        //         throw FileSystemError.FileIsDirectory(targetStat.uri, `Cannot move '${sourceStat.uri}' file to an existing location.`);
-        //     }
-        //     throw FileSystemError.FileNotDirectory(targetStat.uri, `Cannot move '${sourceStat.uri}' directory to an existing location.`);
-        // }
-        // const [sourceMightHaveChildren, targetMightHaveChildren] = await Promise.all([this.mayHaveChildren(_sourceUri), this.mayHaveChildren(_targetUri)]);
-        // // Handling special Windows case when source and target resources are empty folders.
-        // // Source should be deleted and target should be touched.
-        // if (overwrite && targetStat && targetStat.isDirectory && sourceStat.isDirectory && !sourceMightHaveChildren && !targetMightHaveChildren) {
-        //     // The value should be a Unix timestamp in seconds.
-        //     // For example, `Date.now()` returns milliseconds, so it should be divided by `1000` before passing it in.
-        //     const now = Date.now() / 1000;
-        //     await fs.utimes(FileUri.fsPath(_targetUri), now, now);
-        //     await fs.rmdir(FileUri.fsPath(_sourceUri));
-        //     const newStat = await this.doGetStat(_targetUri, 1);
-        //     if (newStat) {
-        //         return newStat;
-        //     }
-        //     throw FileSystemError.FileNotFound(targetUri, `Error occurred when moving resource from '${sourceUri}' to '${targetUri}'.`);
-        // } else if (overwrite && targetStat && targetStat.isDirectory && sourceStat.isDirectory && !targetMightHaveChildren && sourceMightHaveChildren) {
-        //     // Copy source to target, since target is empty. Then wipe the source content.
-        //     const newStat = await this.copy(sourceUri, targetUri, { overwrite });
-        //     await this.delete(sourceUri);
-        //     return newStat;
-        // } else {
-        //     return new Promise<FileStat>((resolve, reject) => {
-        //         mv(FileUri.fsPath(_sourceUri), FileUri.fsPath(_targetUri), { mkdirp: true, clobber: overwrite }, async error => {
-        //             if (error) {
-        //                 reject(error);
-        //                 return;
-        //             }
-        //             resolve(await this.doGetStat(_targetUri, 1));
-        //         });
-        //     });
-        // }
+        if (targetStat && sourceStat.isDirectory !== targetStat.isDirectory) {
+            if (targetStat.isDirectory) {
+                throw FileSystemError.FileIsDirectory(targetStat.uri, `Cannot move '${sourceStat.uri}' file to an existing location.`);
+            }
+            throw FileSystemError.FileNotDirectory(targetStat.uri, `Cannot move '${sourceStat.uri}' directory to an existing location.`);
+        }
+        await this._s3fs.ensureDirExist(FileUriLite.fsPath(_targetUri.parent));
+        await this._s3fs.rename(FileUriLite.fsPath(_sourceUri), FileUriLite.fsPath(_targetUri));
+        const stats = await this.doGetStat(_targetUri, 1);
+        if (stats) {
+            return stats;
+        }
+        throw FileSystemError.FileNotFound(_targetUri, `Error occurred when doing recursive move '${sourceUri}' to '${targetUri}'.`);
     }
 
     async copy(sourceUri: string, targetUri: string, options?: { overwrite?: boolean, recursive?: boolean }): Promise<FileStat> {
-        throw FileSystemError.FileExists(targetUri, 'Not implemented copy ');
-        // const _sourceUri = new URI(sourceUri);
-        // const _targetUri = new URI(targetUri);
-        // const [sourceStat, targetStat, overwrite, recursive] = await Promise.all([
-        //     this.doGetStat(_sourceUri, 0),
-        //     this.doGetStat(_targetUri, 0),
-        //     this.doGetOverwrite(options),
-        //     this.doGetRecursive(options)
-        // ]);
-        // if (!sourceStat) {
-        //     throw FileSystemError.FileNotFound(sourceUri);
-        // }
-        // if (targetStat && !overwrite) {
-        //     throw FileSystemError.FileExists(targetUri, "Did you set the 'overwrite' flag to true?");
-        // }
-        // if (targetStat && targetStat.uri === sourceStat.uri) {
-        //     throw FileSystemError.FileExists(targetUri, 'Cannot perform copy, source and destination are the same.');
-        // }
-        // await fs.copy(FileUri.fsPath(_sourceUri), FileUri.fsPath(_targetUri), { overwrite, recursive });
-        // const newStat = await this.doGetStat(_targetUri, 1);
-        // if (newStat) {
-        //     return newStat;
-        // }
-        // throw FileSystemError.FileNotFound(targetUri, `Error occurred while copying ${sourceUri} to ${targetUri}.`);
+        // throw FileSystemError.FileExists(targetUri, 'Not implemented copy ');
+        const _sourceUri = new URI(sourceUri);
+        const _targetUri = new URI(targetUri);
+        const recursive = this.doGetRecursive(options);
+        const overwrite = this.doGetOverwrite(options);
+        const [sourceStat, targetStat] = await Promise.all([
+            this.doGetStat(_sourceUri, 0),
+            this.doGetStat(_targetUri, 0),
+        ]);
+        if (!sourceStat) {
+            throw FileSystemError.FileNotFound(sourceUri);
+        }
+        if (targetStat && !overwrite) {
+            throw FileSystemError.FileExists(targetUri, "Did you set the 'overwrite' flag to true?");
+        }
+        if (targetStat && targetStat.uri === sourceStat.uri) {
+            throw FileSystemError.FileExists(targetUri, 'Cannot perform copy, source and destination are the same.');
+        }
+        if (targetStat && !targetStat.isDirectory && sourceStat.isDirectory) {
+            throw FileSystemError.FileExists(targetUri, 'Cannot perform copy, source is directory and destination is a file.');
+        }
+
+        // await this.doCopyFile(_sourceUri, _targetUri, overwrite, recursive);
+        if (!recursive && sourceStat.isDirectory) {
+            throw FileSystemError.FileExists(targetUri, 'Cannot perform copy directory when recursive is off');
+        }
+        await this._s3fs.ensureDirExist(FileUriLite.fsPath(_targetUri.parent));
+        // await this.doMkdirRecursive(_targetUri.parent);
+        // await this.getLock();
+        if (sourceStat.isDirectory) {
+            await this._s3fs.copyFolder(FileUriLite.fsPath(_sourceUri), FileUriLite.fsPath(_targetUri));
+        } else {
+            await this._s3fs.copyFile(FileUriLite.fsPath(_sourceUri), FileUriLite.fsPath(_targetUri));
+        }
+
+        const newStat = await this.doGetStat(_targetUri, 1);
+        if (newStat) {
+            return newStat;
+        }
+        throw FileSystemError.FileNotFound(targetUri, `Error occurred while copying ${sourceUri} to ${targetUri}.`);
     }
 
     async createFile(uri: string, options?: { content?: string, encoding?: string }): Promise<FileStat> {
-        throw FileSystemError.FileExists(uri, 'Not implemented createFile');
-        // const _uri = new URI(uri);
-        // const parentUri = _uri.parent;
-        // const [stat, parentStat] = await Promise.all([this.doGetStat(_uri, 0), this.doGetStat(parentUri, 0)]);
-        // if (stat) {
-        //     throw FileSystemError.FileExists(uri, 'Error occurred while creating the file.');
-        // }
-        // throw FileSystemError.FileExists(uri, 'Not implemented createFile');
-        // if (!parentStat) {
-        //     await fs.mkdirs(FileUri.fsPath(parentUri));
-        // }
-        // const content = await this.doGetContent(options);
-        // const encoding = await this.doGetEncoding(options);
+        const _uri = new URI(uri);
+        const parentUri = _uri.parent;
+        const [stat, parentStat] = await Promise.all([this.doGetStat(_uri, 0), this.doGetStat(parentUri, 0)]);
+        if (stat) {
+            throw FileSystemError.FileExists(uri, 'Error occurred while creating the file.');
+        }
+        if (!parentStat) {
+            await this._s3fs.ensureDirExist(FileUriLite.fsPath(parentUri));
+            // await this.doMkdirRecursive(parentUri);
+        }
+        const content = this.doGetContent(options);
+        const encoding = this.doGetEncoding(options);
+        if (encoding !== 'utf8') {
+            throw FileSystemError.FileExists(uri, 'Unsupported File Encoding. ' + encoding);
+        }
         // const encodedNewContent = iconv.encode(content, encoding);
-        // await fs.writeFile(FileUri.fsPath(_uri), encodedNewContent);
-        // const newStat = await this.doGetStat(_uri, 1);
-        // if (newStat) {
-        //     return newStat;
-        // }
-        // throw FileSystemError.FileNotFound(uri, 'Error occurred while creating the file.');
+        await this._s3fs.writeFile(FileUriLite.fsPath(_uri), content);
+        const newStat = await this.doGetStat(_uri, 1);
+        if (newStat) {
+            return newStat;
+        }
+        throw FileSystemError.FileNotFound(uri, 'Error occurred while creating the file.');
     }
 
     async createFolder(uri: string): Promise<FileStat> {
-        throw FileSystemError.FileExists(uri, 'Not implemented createFolder');
-        // const _uri = new URI(uri);
-        // const stat = await this.doGetStat(_uri, 0);
-        // if (stat) {
-        //     if (stat.isDirectory) {
-        //         return stat;
-        //     }
-        //     throw FileSystemError.FileExists(uri, 'Error occurred while creating the directory: path is a file.');
-        // }
-        // await fs.mkdirs(FileUri.fsPath(_uri));
-        // const newStat = await this.doGetStat(_uri, 1);
-        // if (newStat) {
-        //     return newStat;
-        // }
-        // throw FileSystemError.FileNotFound(uri, 'Error occurred while creating the directory.');
+        const _uri = new URI(uri);
+        const stat = await this.doGetStat(_uri, 0);
+        if (stat) {
+            if (stat.isDirectory) {
+                return stat;
+            }
+            throw FileSystemError.FileExists(uri, 'Error occurred while creating the directory: path is a file.');
+        }
+        await this._s3fs.ensureDirExist(FileUriLite.fsPath(_uri));
+        // await this.doMkdirRecursive(_uri);
+        const newStat = await this.doGetStat(_uri, 1);
+        if (newStat) {
+            return newStat;
+        }
+        throw FileSystemError.FileNotFound(uri, 'Error occurred while creating the directory.');
     }
 
-    async touchFile(uri: string): Promise<FileStat> {
-        throw FileSystemError.FileExists(uri, 'Not implemented touchFile');
-        // const _uri = new URI(uri);
-        // const stat = await this.doGetStat(_uri, 0);
-        // if (!stat) {
-        //     return this.createFile(uri);
-        // } else {
-        //     return new Promise<FileStat>((resolve, reject) => {
-        //         // tslint:disable-next-line:no-any
-        //         touch(FileUri.fsPath(_uri), async (error: any) => {
-        //             if (error) {
-        //                 reject(error);
-        //                 return;
-        //             }
-        //             resolve(await this.doGetStat(_uri, 1));
-        //         });
-        //     });
-        // }
+    public async touchFile(uri: string): Promise<FileStat> {
+        throw FileSystemError.FileExists(uri, 'Touchfile not implemented delete');
     }
 
-    async delete(uri: string, options?: FileDeleteOptions): Promise<void> {
-        throw FileSystemError.FileExists(uri, 'Not implemented delete');
-        // const _uri = new URI(uri);
-        // const stat = await this.doGetStat(_uri, 0);
-        // if (!stat) {
-        //     throw FileSystemError.FileNotFound(uri);
-        // }
-        // // Windows 10.
-        // // Deleting an empty directory throws `EPERM error` instead of `unlinkDir`.
-        // // https://github.com/paulmillr/chokidar/issues/566
-        // const moveToTrash = await this.doGetMoveToTrash(options);
-        // if (moveToTrash) {
-        //     return trash([FileUri.fsPath(_uri)]);
-        // } else {
-        //     const filePath = FileUri.fsPath(_uri);
-        //     const outputRootPath = paths.join(os.tmpdir(), v4());
-        //     try {
-        //         await new Promise<void>((resolve, reject) => {
-        //             fs.rename(filePath, outputRootPath, async error => {
-        //                 if (error) {
-        //                     reject(error);
-        //                     return;
-        //                 }
-        //                 resolve();
-        //             });
-        //         });
-        //         // There is no reason for the promise returned by this function not to resolve
-        //         // as soon as the move is complete.  Clearing up the temporary files can be
-        //         // done in the background.
-        //         fs.remove(FileUri.fsPath(outputRootPath));
-        //     } catch (error) {
-        //         return fs.remove(filePath);
-        //     }
-        // }
+    public async delete(uri: string, options?: FileDeleteOptions): Promise<void> {
+        // throw FileSystemError.FileExists(uri, 'Not implemented delete');
+        const _uri = new URI(uri);
+        const stat = await this.doGetStat(_uri, 0);
+        if (!stat) {
+            throw FileSystemError.FileNotFound(uri);
+        }
+        await this._s3fs.delete(FileUriLite.fsPath(_uri));
     }
 
-    async getEncoding(uri: string): Promise<string> {
+    public async getEncoding(uri: string): Promise<string> {
         const _uri = new URI(uri);
         const stat = await this.doGetStat(_uri, 0);
         if (!stat) {
@@ -377,166 +318,119 @@ export class WorkspaceBrowserFileSystem implements FileSystem {
         return this.options.encoding;
     }
 
-    async guessEncoding(uri: string): Promise<string | undefined> {
+    public async guessEncoding(uri: string): Promise<string | undefined> {
         console.log('guessEncoding is dummy: ' + uri);
-        return 'utf-8';
+        return 'utf8';
     }
 
-    async getRoots(): Promise<FileStat[]> {
-        throw Error('Not implemented getRoots');
-        // const cwdRoot = "/";
-        // const rootUri = FileUri.create(cwdRoot);
-        // const root = await this.doGetStat(rootUri, 1);
-        // if (root) {
-        //     return [root];
-        // }
-        // return [];
+    public async getRoots(): Promise<FileStat[]> {
+        const cwdRoot = '/';
+        const rootUri = FileUriLite.create(cwdRoot);
+        const root = await this.doGetStat(rootUri, 1);
+        if (root) {
+            return [root];
+        }
+        return [];
     }
 
-    async getCurrentUserHome(): Promise<FileStat | undefined> {
-        throw Error('Not implemented getCurrentUserHome');
-        // return this.getFileStat(FileUri.create("/").toString());
+    public async getCurrentUserHome(): Promise<FileStat | undefined> {
+        return this.getFileStat(FileUriLite.create('/').toString());
     }
 
-    getDrives(): Promise<string[]> {
-        return new Promise<string[]>((resolve, reject) => {
-                resolve(['/']);
-        });
+    public getDrives(): Promise<string[]> {
+        return new Promise<string[]>((resolve, reject) => { resolve(['/']); });
     }
 
     dispose(): void {
         // NOOP
     }
 
-    async access(uri: string, mode: number = FileAccess.Constants.F_OK): Promise<boolean> {
-        // try {
-        //     await fs.access(FileUri.fsPath(uri), mode);
-        //     return true;
-        // } catch {
-        //     return false;
-        // }
-        console.error('Not implemented access');
-        return false;
+    public async access(uri: string, mode: number = FileAccess.Constants.F_OK): Promise<boolean> {
+        // Same as exists
+        const _uri = new URI(uri);
+        const stat = await this.doGetStat(_uri, 0);
+        if (!stat) {
+            return false;
+        }
+        return true;
     }
 
-    async getFsPath(uri: string): Promise<string | undefined> {
-        throw Error('Not implemented getFsPath');
-        // if (!uri.startsWith('file:/')) {
-        //     return undefined;
-        // } else {
-        //     return FileUri.fsPath(uri);
-        // }
+    public async getFsPath(uri: string): Promise<string | undefined> {
+        if (!uri.startsWith('file:/')) {
+            return undefined;
+        } else {
+            return FileUriLite.fsPath(uri);
+        }
     }
+
 
     protected async doGetStat(uri: URI, depth: number): Promise<FileStat | undefined> {
-        throw Error('Not implemented doGetStat');
-        // try {
-        //     const stats = await fs.stat(FileUri.fsPath(uri));
-        //     if (stats.isDirectory()) {
-        //         return this.doCreateDirectoryStat(uri, stats, depth);
-        //     }
-        //     return this.doCreateFileStat(uri, stats);
-        // } catch (error) {
-        //     if (isErrnoException(error)) {
-        //         if (error.code === 'ENOENT' || error.code === 'EACCES' || error.code === 'EBUSY' || error.code === 'EPERM') {
-        //             return undefined;
-        //         }
-        //     }
-        //     throw error;
-        // }
+        const s3obj = await this._s3fs.stat(FileUriLite.fsPath(uri));
+        if (s3obj) {
+            if (s3obj.isDir) {
+                return this.doCreateDirectoryStat(uri, s3obj, depth);
+            } else {
+                return this.doCreateFileStat(uri, s3obj);
+            }
+        } else {
+            return undefined;
+        }
     }
 
-    // protected async doCreateFileStat(uri: URI, stat: fs.Stats): Promise<FileStat> {
-    //     return {
-    //         uri: uri.toString(),
-    //         lastModification: stat.mtime.getTime(),
-    //         isDirectory: false,
-    //         size: stat.size
-    //     };
-    // }
+    protected doCreateFileStat(uri: URI, stat: S3Object): FileStat {
+        return {
+            uri: uri.toString(),
+            lastModification: stat.modifiedTime.getTime(),
+            isDirectory: stat.isDir,
+            size: stat.size
+        };
+    }
 
-    // protected async doCreateDirectoryStat(uri: URI, stat: fs.Stats, depth: number): Promise<FileStat> {
-    //     const children = depth > 0 ? await this.doGetChildren(uri, depth) : [];
-    //     return {
-    //         uri: uri.toString(),
-    //         lastModification: stat.mtime.getTime(),
-    //         isDirectory: true,
-    //         children
-    //     };
-    // }
+    protected async doCreateDirectoryStat(uri: URI, stat: S3Object, depth: number): Promise<FileStat> {
+        const children = depth > 0 ? await this.doGetChildren(uri, depth) : [];
+        return {
+            uri: uri.toString(),
+            lastModification: stat.modifiedTime.getTime(),
+            isDirectory: true,
+            children
+        };
+    }
 
-    // protected async doGetChildren(uri: URI, depth: number): Promise<FileStat[]> {
-    //     const files = await fs.readdir(FileUri.fsPath(uri));
-    //     const children = await Promise.all(files.map(fileName => uri.resolve(fileName)).map(childUri => this.doGetStat(childUri, depth - 1)));
-    //     return children.filter(notEmpty);
-    // }
+    protected async doGetChildren(uri: URI, depth: number): Promise<FileStat[]> {
+        const files = await this._s3fs.readdir(FileUriLite.fsPath(uri));
+        // console.log('readdir ' + FileUriLite.fsPath(uri) + ' ' + files.length);
+        const children: FileStat[] = [];
+        files.forEach(v => {
+            // console.log(v.uri);
+            const _uri = new URI(v.uri);
+            // console.log(v.uri);
+            // console.log(v.isDir);
+            children.push(this.doCreateFileStat(_uri, v));
+        });
+        return children;
+    }
 
-    // /**
-    //  * Return `true` if it's possible for this URI to have children.
-    //  * It might not be possible to be certain because of permission problems or other filesystem errors.
-    //  */
-    // protected async mayHaveChildren(uri: URI): Promise<boolean> {
-    //     /* If there's a problem reading the root directory. Assume it's not empty to avoid overwriting anything.  */
-    //     try {
-    //         const rootStat = await this.doGetStat(uri, 0);
-    //         if (rootStat === undefined) {
-    //             return true;
-    //         }
-    //         /* Not a directory.  */
-    //         if (rootStat !== undefined && rootStat.isDirectory === false) {
-    //             return false;
-    //         }
-    //     } catch {
-    //         return true;
-    //     }
-    // If there's a problem with it's children then the directory must not be empty.
-    //     try {
-    //         const stat = await this.doGetStat(uri, 1);
-    //         if (stat !== undefined && stat.children !== undefined) {
-    //             return stat.children.length > 0;
-    //         } else {
-    //             return true;
-    //         }
-    //     } catch {
-    //         return true;
-    //     }
-    // }
+    protected doGetEncoding(option?: { encoding?: string }): string {
+        return option && typeof (option.encoding) !== 'undefined'
+            ? option.encoding
+            : this.options.encoding;
+    }
 
-    // protected async doGetEncoding(option?: { encoding?: string }): Promise<string> {
-    //     return option && typeof (option.encoding) !== 'undefined'
-    //         ? option.encoding
-    //         : this.options.encoding;
-    // }
+    protected doGetOverwrite(option?: { overwrite?: boolean }): boolean {
+        return option && typeof (option.overwrite) !== 'undefined'
+            ? option.overwrite
+            : this.options.overwrite;
+    }
 
-    // protected async doGetOverwrite(option?: { overwrite?: boolean }): Promise<boolean> {
-    //     return option && typeof (option.overwrite) !== 'undefined'
-    //         ? option.overwrite
-    //         : this.options.overwrite;
-    // }
+    protected doGetRecursive(option?: { recursive?: boolean }): boolean {
+        return option && typeof (option.recursive) !== 'undefined'
+            ? option.recursive
+            : this.options.recursive;
+    }
 
-    // protected async doGetRecursive(option?: { recursive?: boolean }): Promise<boolean> {
-    //     return option && typeof (option.recursive) !== 'undefined'
-    //         ? option.recursive
-    //         : this.options.recursive;
-    // }
-
-    // protected async doGetMoveToTrash(option?: { moveToTrash?: boolean }): Promise<boolean> {
-    //     return option && typeof (option.moveToTrash) !== 'undefined'
-    //         ? option.moveToTrash
-    //         : this.options.moveToTrash;
-    // }
-
-    // protected async doGetContent(option?: { content?: string }): Promise<string> {
-    //     return (option && option.content) || '';
-    // }
+    protected doGetContent(option?: { content?: string }): string {
+        return (option && option.content) || '';
+    }
 
 }
 
-// tslint:disable-next-line:no-any
-// function isErrnoException(error: any | NodeJS.ErrnoException): error is NodeJS.ErrnoException {
-//     return (<NodeJS.ErrnoException>error).code !== undefined && (<NodeJS.ErrnoException>error).errno !== undefined;
-// }
-
-// function notEmpty<T>(value: T | undefined): value is T {
-//     return value !== undefined;
-// }
