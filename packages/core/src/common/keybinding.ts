@@ -33,6 +33,32 @@ export interface Keybinding {
     /**
      * Specified when the command has arguments that are passed to the command handler.
      */
-    // tslint:disable-next-line no-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args?: any;
+}
+export namespace Keybinding {
+
+    /**
+     * Returns with the string representation of the binding.
+     * Any additional properties which are not described on
+     * the `Keybinding` API will be ignored.
+     *
+     * @param binding the binding to stringify.
+     */
+    export function stringify(binding: Keybinding): string {
+        const copy: Keybinding = {
+            command: binding.command,
+            keybinding: binding.keybinding,
+            context: binding.context,
+            when: binding.when,
+            args: binding.args
+        };
+        return JSON.stringify(copy);
+    }
+
+    /* Determine whether object is a KeyBinding */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    export function is(arg: Keybinding | any): arg is Keybinding {
+        return !!arg && arg === Object(arg) && 'command' in arg && 'keybinding' in arg;
+    }
 }

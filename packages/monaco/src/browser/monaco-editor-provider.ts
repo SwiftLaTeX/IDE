@@ -14,7 +14,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-// tslint:disable:no-any
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import URI from '@theia/core/lib/common/uri';
 import { EditorPreferenceChange, EditorPreferences, TextEditor, DiffNavigator } from '@theia/editor/lib/browser';
 import { DiffUris } from '@theia/core/lib/browser/diff-uris';
@@ -36,6 +36,8 @@ import { MonacoBulkEditService } from './monaco-bulk-edit-service';
 import IEditorOverrideServices = monaco.editor.IEditorOverrideServices;
 import { ApplicationServer } from '@theia/core/lib/common/application-protocol';
 import { OS } from '@theia/core';
+import { KeybindingRegistry } from '@theia/core/lib/browser';
+import { MonacoResolvedKeybinding } from './monaco-resolved-keybinding';
 
 @injectable()
 export class MonacoEditorProvider {
@@ -45,6 +47,9 @@ export class MonacoEditorProvider {
 
     @inject(MonacoEditorServices)
     protected readonly services: MonacoEditorServices;
+
+    @inject(KeybindingRegistry)
+    protected keybindingRegistry: KeybindingRegistry;
 
     private isWindowsBackend: boolean = false;
 
@@ -79,7 +84,7 @@ export class MonacoEditorProvider {
         });
 
         if (staticServices.resourcePropertiesService) {
-            // tslint:disable-next-line:no-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const original = staticServices.resourcePropertiesService.get() as any;
             original.getEOL = () => {
                 const eol = this.editorPreferences['files.eol'];
@@ -125,6 +130,9 @@ export class MonacoEditorProvider {
         }, toDispose);
         editor.onDispose(() => toDispose.dispose());
 
+        this.suppressMonacoKeybindingListener(editor);
+        this.injectKeybindingResolver(editor);
+
         const standaloneCommandService = new monaco.services.StandaloneCommandService(editor.instantiationService);
         commandService.setDelegate(standaloneCommandService);
         this.installQuickOpenService(editor);
@@ -142,6 +150,39 @@ export class MonacoEditorProvider {
         }));
 
         return editor;
+    }
+
+    /**
+     * Suppresses Monaco keydown listener to avoid triggering default Monaco keybindings
+     * if they are overriden by a user. Monaco keybindings should be registered as Theia keybindings
+     * to allow a user to customize them.
+     */
+    protected suppressMonacoKeybindingListener(editor: MonacoEditor): void {
+        let keydownListener: monaco.IDisposable | undefined;
+        for (const listener of editor.getControl()._standaloneKeybindingService._store._toDispose) {
+            if ('_type' in listener && listener['_type'] === 'keydown') {
+                keydownListener = listener;
+                break;
+            }
+        }
+        if (keydownListener) {
+            keydownListener.dispose();
+        }
+    }
+
+    protected injectKeybindingResolver(editor: MonacoEditor): void {
+        const keybindingService = editor.getControl()._standaloneKeybindingService;
+        keybindingService.resolveKeybinding = keybinding => [new MonacoResolvedKeybinding(MonacoResolvedKeybinding.keySequence(keybinding), this.keybindingRegistry)];
+        keybindingService.resolveKeyboardEvent = keyboardEvent => {
+            const keybinding = new monaco.keybindings.SimpleKeybinding(
+                keyboardEvent.ctrlKey,
+                keyboardEvent.shiftKey,
+                keyboardEvent.altKey,
+                keyboardEvent.metaKey,
+                keyboardEvent.keyCode
+            ).toChord();
+            return new MonacoResolvedKeybinding(MonacoResolvedKeybinding.keySequence(keybinding), this.keybindingRegistry);
+        };
     }
 
     protected createEditor(uri: URI, override: IEditorOverrideServices, toDispose: DisposableCollection): Promise<MonacoEditor> {

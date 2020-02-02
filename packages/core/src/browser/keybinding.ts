@@ -38,35 +38,11 @@ export namespace KeybindingScope {
     export const length = KeybindingScope.END - KeybindingScope.DEFAULT;
 }
 
-export namespace Keybinding {
-
-    /**
-     * Returns with the string representation of the binding.
-     * Any additional properties which are not described on
-     * the `Keybinding` API will be ignored.
-     *
-     * @param binding the binding to stringify.
-     */
-    export function stringify(binding: Keybinding): string {
-        const copy: Keybinding = {
-            command: binding.command,
-            keybinding: binding.keybinding,
-            context: binding.context
-        };
-        return JSON.stringify(copy);
-    }
-
-    /* Determine whether object is a KeyBinding */
-    // tslint:disable-next-line:no-any
-    export function is(arg: Keybinding | any): arg is Keybinding {
-        return !!arg && arg === Object(arg) && 'command' in arg && 'keybinding' in arg;
-    }
-}
-
 /**
  * @deprecated import from `@theia/core/lib/common/keybinding` instead
  */
 export type Keybinding = common.Keybinding;
+export const Keybinding = common.Keybinding;
 
 export interface ResolvedKeybinding extends Keybinding {
     /**
@@ -442,22 +418,25 @@ export class KeybindingRegistry {
      * The lists are sorted by priority (see #sortKeybindingsByPriority).
      *
      * @param keySequence The key sequence for which we are looking for keybindings.
+     * @param event The source keyboard event.
      */
-    getKeybindingsForKeySequence(keySequence: KeySequence): KeybindingRegistry.KeybindingsResult {
+    getKeybindingsForKeySequence(keySequence: KeySequence, event?: KeyboardEvent): KeybindingRegistry.KeybindingsResult {
         const result = new KeybindingRegistry.KeybindingsResult();
 
         for (let scope = KeybindingScope.END; --scope >= KeybindingScope.DEFAULT;) {
             const matches = this.getKeySequenceCollisions(this.keymaps[scope], keySequence);
 
             matches.full = matches.full.filter(
-                binding => this.getKeybindingCollisions(result.full, binding).full.length === 0);
+                binding => (!event || this.isEnabled(binding, event)) && this.getKeybindingCollisions(result.full, binding).full.length === 0);
             matches.partial = matches.partial.filter(
-                binding => this.getKeybindingCollisions(result.partial, binding).partial.length === 0);
+                binding => (!event || this.isEnabled(binding, event)) && this.getKeybindingCollisions(result.partial, binding).partial.length === 0);
 
             if (scope === KeybindingScope.DEFAULT_OVERRIDING) {
                 matches.full.reverse();
                 matches.partial.reverse();
             }
+            matches.full.forEach(binding => binding.scope = scope);
+            matches.partial.forEach(binding => binding.scope = scope);
             result.merge(matches);
         }
         this.sortKeybindingsByPriority(result.full);
@@ -558,41 +537,27 @@ export class KeybindingRegistry {
     /**
      * Tries to execute a keybinding.
      *
-     * @param bindings list of matching keybindings as returned by getKeybindingsForKeySequence.full
+     * @param binding to execute
      * @param event keyboard event.
-     * @return true if the corresponding command was executed false otherwise.
      */
-    protected tryKeybindingExecution(bindings: Keybinding[], event: KeyboardEvent): boolean {
+    protected executeKeyBinding(binding: Keybinding, event: KeyboardEvent): void {
+        if (this.isPseudoCommand(binding.command)) {
+            /* Don't do anything, let the event propagate.  */
+        } else {
+            const command = this.commandRegistry.getCommand(binding.command);
+            if (command) {
+                const commandHandler = this.commandRegistry.getActiveHandler(command.id, binding.args);
 
-        if (bindings.length === 0) {
-            return false;
-        }
-
-        for (const binding of bindings) {
-            if (this.isEnabled(binding, event)) {
-                if (this.isPseudoCommand(binding.command)) {
-                    /* Don't do anything, let the event propagate.  */
-                    return true;
-                } else {
-                    const command = this.commandRegistry.getCommand(binding.command);
-                    if (command) {
-                        const commandHandler = this.commandRegistry.getActiveHandler(command.id, binding.args);
-
-                        if (commandHandler) {
-                            commandHandler.execute(binding.args);
-                        }
-
-                        /* Note that if a keybinding is in context but the command is
-                           not active we still stop the processing here.  */
-                        event.preventDefault();
-                        event.stopPropagation();
-                        return true;
-                    }
+                if (commandHandler) {
+                    commandHandler.execute(binding.args);
                 }
-                return false;
+
+                /* Note that if a keybinding is in context but the command is
+                   not active we still stop the processing here.  */
+                event.preventDefault();
+                event.stopPropagation();
             }
         }
-        return false;
     }
 
     /**
@@ -626,15 +591,10 @@ export class KeybindingRegistry {
 
         this.keyboardLayoutService.validateKeyCode(keyCode);
         this.keySequence.push(keyCode);
-        const bindings = this.getKeybindingsForKeySequence(this.keySequence);
-
-        if (bindings.partial.length === 0 && this.tryKeybindingExecution(bindings.full, event)) {
-
-            this.keySequence = [];
-            this.statusBar.removeElement('keybinding-status');
-
-        } else if (bindings.partial.some(binding => this.isEnabled(binding, event))) {
-
+        const bindings = this.getKeybindingsForKeySequence(this.keySequence, event);
+        const full = bindings.full.find(binding => this.isEnabled(binding, event));
+        const partial = bindings.partial.find(binding => (!full || binding.scope! > full.scope!) && this.isEnabled(binding, event));
+        if (partial) {
             /* Accumulate the keysequence */
             event.preventDefault();
             event.stopPropagation();
@@ -644,8 +604,10 @@ export class KeybindingRegistry {
                 alignment: StatusBarAlignment.LEFT,
                 priority: 2
             });
-
         } else {
+            if (full) {
+                this.executeKeyBinding(full, event);
+            }
             this.keySequence = [];
             this.statusBar.removeElement('keybinding-status');
         }
@@ -693,9 +655,9 @@ export class KeybindingRegistry {
 
 export namespace KeybindingRegistry {
     export class KeybindingsResult {
-        full: Keybinding[] = [];
-        partial: Keybinding[] = [];
-        shadow: Keybinding[] = [];
+        full: ScopedKeybinding[] = [];
+        partial: ScopedKeybinding[] = [];
+        shadow: ScopedKeybinding[] = [];
 
         /**
          * Merge two results together inside `this`

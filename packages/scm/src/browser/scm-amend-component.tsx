@@ -19,7 +19,7 @@ import '../../src/browser/style/scm-amend-component.css';
 import * as React from 'react';
 import { ScmAvatarService } from './scm-avatar-service';
 import { StorageService } from '@theia/core/lib/browser';
-import { DisposableCollection } from '@theia/core';
+import { Disposable, DisposableCollection } from '@theia/core';
 
 import { ScmRepository } from './scm-repository';
 import { ScmAmendSupport, ScmCommit } from './scm-provider';
@@ -70,7 +70,7 @@ export class ScmAmendComponent extends React.Component<ScmAmendComponentProps, S
         if (instance && this.lastCommitHeight === 0) {
             this.lastCommitHeight = instance.getBoundingClientRect().height;
         }
-    }
+    };
 
     constructor(props: ScmAmendComponentProps) {
         super(props);
@@ -80,14 +80,26 @@ export class ScmAmendComponent extends React.Component<ScmAmendComponentProps, S
             amendingCommits: [],
             lastCommit: undefined
         };
+
+        const setState = this.setState.bind(this);
+        this.setState = newState => {
+            if (!this.toDisposeOnUnmount.disposed) {
+                setState(newState);
+            }
+        };
     }
 
     protected readonly toDisposeOnUnmount = new DisposableCollection();
 
     async componentDidMount(): Promise<void> {
+        this.toDisposeOnUnmount.push(Disposable.create(() => { /* mark as mounted */ }));
+
         const lastCommit = await this.getLastCommit();
         this.setState({ amendingCommits: await this.buildAmendingList(lastCommit ? lastCommit.commit : undefined), lastCommit });
 
+        if (this.toDisposeOnUnmount.disposed) {
+            return;
+        }
         this.toDisposeOnUnmount.push(
             this.props.repository.provider.onDidChange(() => this.fetchStatusAndSetState())
         );
@@ -230,7 +242,7 @@ export class ScmAmendComponent extends React.Component<ScmAmendComponentProps, S
 
         this.transitionHint = 'amend';
         await this.resetAndSetMessage('HEAD~', 'HEAD');
-    }
+    };
 
     protected unamend = async (): Promise<void> => {
         if (this.state.transition.state !== 'none' && this.transitionHint !== 'none') {
@@ -251,7 +263,7 @@ export class ScmAmendComponent extends React.Component<ScmAmendComponentProps, S
             this.transitionHint = 'unamend';
             await this.resetAndSetMessage(commitToRestore.commit.id, commitToUseForMessage);
         }
-    }
+    };
 
     private async resetAndSetMessage(commitToRestore: string, commitToUseForMessage: string | undefined): Promise<void> {
         const message = commitToUseForMessage
@@ -288,7 +300,7 @@ export class ScmAmendComponent extends React.Component<ScmAmendComponentProps, S
                             <div id='lastCommit' className='changesContainer'>
                                 <div className='theia-header scm-theia-header'>
                                     HEAD Commit
-                            </div>
+                                </div>
                                 {this.renderLastCommit()}
                             </div>
                         </div>
@@ -442,7 +454,7 @@ export class ScmAmendComponent extends React.Component<ScmAmendComponentProps, S
                         ? <div className={ScmAmendComponent.Styles.FLEX_CENTER}>
                             <button className='theia-button' title='Unamend commit' onClick={this.unamend}>
                                 Unamend
-                        </button>
+                            </button>
                         </div>
                         : ''
                 }

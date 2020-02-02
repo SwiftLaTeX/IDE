@@ -325,7 +325,7 @@ export class MonacoEditor extends MonacoEditorServices implements TextEditor {
         this.toDispose.dispose();
     }
 
-    // tslint:disable-next-line:no-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     trigger(source: string, handlerId: string, payload: any): void {
         this.editor.trigger(source, handlerId, payload);
     }
@@ -348,7 +348,7 @@ export class MonacoEditor extends MonacoEditorServices implements TextEditor {
 
     protected autoresize(): void {
         if (this.autoSizing) {
-            // tslint:disable-next-line:no-null-keyword
+            // eslint-disable-next-line no-null/no-null
             this.resize(null);
         }
     }

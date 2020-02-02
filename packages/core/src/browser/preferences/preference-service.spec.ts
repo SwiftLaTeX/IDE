@@ -14,8 +14,8 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-// tslint:disable:no-any
-// tslint:disable:no-unused-expression
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-unused-expressions */
 
 import { enableJSDOM } from '../test/jsdom';
 
@@ -101,9 +101,11 @@ describe('Preference Service', () => {
             if (pref) {
                 expect(pref.preferenceName).eq('testPref');
                 expect(pref.newValue).eq('newVal');
-                return done();
+                done();
+                return;
             }
-            return done(new Error('onPreferenceChanged() fails to return any preference change infomation'));
+            done(new Error('onPreferenceChanged() fails to return any preference change infomation'));
+            return;
         });
 
         userProvider.emitPreferencesChangedEvent({

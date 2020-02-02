@@ -14,7 +14,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-// tslint:disable:no-any
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import * as React from 'react';
 import { LabelProvider } from '@theia/core/lib/browser';
@@ -378,13 +378,20 @@ export class DebugSession implements CompositeTreeElement {
     }
 
     protected async runInTerminal({ arguments: { title, cwd, args, env } }: DebugProtocol.RunInTerminalRequest): Promise<DebugProtocol.RunInTerminalResponse['body']> {
-        const terminal = await this.doCreateTerminal({ title, cwd, env });
+        const terminal = await this.doCreateTerminal({ title, cwd, env, useServerTitle: false });
         terminal.sendText(args.join(' ') + '\n');
         return { processId: await terminal.processId };
     }
 
     protected async doCreateTerminal(options: TerminalWidgetOptions): Promise<TerminalWidget> {
-        let terminal = this.terminalServer.all.find(t => t.title.label === options.title || t.title.caption === options.title);
+        let terminal = undefined;
+        for (const t of this.terminalServer.all) {
+            if ((t.title.label === options.title || t.title.caption === options.title) && (await t.hasChildProcesses()) === false) {
+                terminal = t;
+                break;
+            }
+        }
+
         if (!terminal) {
             terminal = await this.terminalServer.newTerminal(options);
             await terminal.start();

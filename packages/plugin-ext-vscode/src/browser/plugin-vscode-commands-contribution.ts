@@ -29,12 +29,14 @@ import { ApplicationShellMouseTracker } from '@theia/core/lib/browser/shell/appl
 import { CommandService } from '@theia/core/lib/common/command';
 import TheiaURI from '@theia/core/lib/common/uri';
 import { EditorManager } from '@theia/editor/lib/browser';
+import { CodeEditorWidget } from '@theia/plugin-ext/lib/main/browser/menus/menus-contribution-handler';
 import { TextDocumentShowOptions } from '@theia/plugin-ext/lib/common/plugin-api-rpc-model';
 import { DocumentsMainImpl } from '@theia/plugin-ext/lib/main/browser/documents-main';
 import { createUntitledResource } from '@theia/plugin-ext/lib/main/browser/editor/untitled-resource';
 import { toDocumentSymbol } from '@theia/plugin-ext/lib/plugin/type-converters';
 import { ViewColumn } from '@theia/plugin-ext/lib/plugin/types-impl';
 import { WorkspaceCommands } from '@theia/workspace/lib/browser';
+import { WorkspaceService, WorkspaceInput } from '@theia/workspace/lib/browser/workspace-service';
 import { DiffService } from '@theia/workspace/lib/browser/diff-service';
 import { MonacoEditor } from '@theia/monaco/lib/browser/monaco-editor';
 import { inject, injectable } from 'inversify';
@@ -43,6 +45,10 @@ import URI from 'vscode-uri';
 export namespace VscodeCommands {
     export const OPEN: Command = {
         id: 'vscode.open'
+    };
+
+    export const OPEN_FOLDER: Command = {
+        id: 'vscode.openFolder'
     };
 
     export const DIFF: Command = {
@@ -74,6 +80,8 @@ export class PluginVscodeCommandsContribution implements CommandContribution {
     protected readonly mouseTracker: ApplicationShellMouseTracker;
     @inject(PrefixQuickOpenService)
     protected readonly quickOpen: PrefixQuickOpenService;
+    @inject(WorkspaceService)
+    protected readonly workspaceService: WorkspaceService;
 
     registerCommands(commands: CommandRegistry): void {
         commands.registerCommand(VscodeCommands.OPEN, {
@@ -101,9 +109,34 @@ export class PluginVscodeCommandsContribution implements CommandContribution {
             }
         });
 
+        interface IOpenFolderAPICommandOptions {
+            forceNewWindow?: boolean;
+            forceReuseWindow?: boolean;
+            noRecentEntry?: boolean;
+        }
+
+        commands.registerCommand(VscodeCommands.OPEN_FOLDER, {
+            isVisible: () => false,
+            execute: async (resource?: URI, arg: boolean | IOpenFolderAPICommandOptions = {}) => {
+                if (!resource) {
+                    return commands.executeCommand(WorkspaceCommands.OPEN_WORKSPACE.id);
+                }
+                if (!URI.isUri(resource)) {
+                    throw new Error(`Invalid argument for ${VscodeCommands.OPEN_FOLDER.id} command with URI argument. Found ${resource}`);
+                }
+                let options: WorkspaceInput | undefined;
+                if (typeof arg === 'boolean') {
+                    options = { preserveWindow: !arg };
+                } else {
+                    options = { preserveWindow: !arg.forceNewWindow };
+                }
+                this.workspaceService.open(new TheiaURI(resource), options);
+            }
+        });
+
         commands.registerCommand(VscodeCommands.DIFF, {
             isVisible: () => false,
-            // tslint:disable-next-line: no-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             execute: async (left: URI, right: URI, label?: string, options?: TextDocumentShowOptions) => {
                 if (!left || !right) {
                     throw new Error(`${VscodeCommands.DIFF} command requires at least two URI arguments. Found left=${left}, right=${right} as arguments`);
@@ -123,7 +156,7 @@ export class PluginVscodeCommandsContribution implements CommandContribution {
 
         commands.registerCommand(VscodeCommands.SET_CONTEXT, {
             isVisible: () => false,
-            // tslint:disable-next-line: no-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             execute: (contextKey: any, contextValue: any) => {
                 this.contextKeyService.createKey(String(contextKey), contextValue);
             }
@@ -199,7 +232,7 @@ export class PluginVscodeCommandsContribution implements CommandContribution {
                         return (resourceUri && resourceUri.toString()) === uriString;
                     });
                 }
-                if (NavigatableWidget.is(widget)) {
+                if (CodeEditorWidget.is(widget)) {
                     widget.close();
                 }
             }
@@ -215,7 +248,7 @@ export class PluginVscodeCommandsContribution implements CommandContribution {
                     });
                 }
                 for (const widget of this.shell.widgets) {
-                    if (NavigatableWidget.is(widget) && widget !== editor) {
+                    if (CodeEditorWidget.is(widget) && widget !== editor) {
                         widget.close();
                     }
                 }
@@ -235,7 +268,7 @@ export class PluginVscodeCommandsContribution implements CommandContribution {
                     const tabBar = this.shell.getTabBarFor(editor);
                     if (tabBar) {
                         this.shell.closeTabs(tabBar,
-                            ({ owner }) => NavigatableWidget.is(owner) && owner !== editor
+                            ({ owner }) => CodeEditorWidget.is(owner)
                         );
                     }
                 }
@@ -249,7 +282,7 @@ export class PluginVscodeCommandsContribution implements CommandContribution {
                     for (const tabBar of this.shell.allTabBars) {
                         if (tabBar !== editorTabBar) {
                             this.shell.closeTabs(tabBar,
-                                ({ owner }) => NavigatableWidget.is(owner)
+                                ({ owner }) => CodeEditorWidget.is(owner)
                             );
                         }
                     }
@@ -269,7 +302,7 @@ export class PluginVscodeCommandsContribution implements CommandContribution {
                                     left = false;
                                     return false;
                                 }
-                                return left && NavigatableWidget.is(owner);
+                                return left && CodeEditorWidget.is(owner);
                             }
                         );
                     }
@@ -289,7 +322,7 @@ export class PluginVscodeCommandsContribution implements CommandContribution {
                                     left = false;
                                     return false;
                                 }
-                                return !left && NavigatableWidget.is(owner);
+                                return !left && CodeEditorWidget.is(owner);
                             }
                         );
                     }
@@ -299,7 +332,7 @@ export class PluginVscodeCommandsContribution implements CommandContribution {
         commands.registerCommand({ id: 'workbench.action.closeAllEditors' }, {
             execute: () => {
                 for (const widget of this.shell.widgets) {
-                    if (NavigatableWidget.is(widget)) {
+                    if (CodeEditorWidget.is(widget)) {
                         widget.close();
                     }
                 }
@@ -325,7 +358,7 @@ export class PluginVscodeCommandsContribution implements CommandContribution {
 
         // Register built-in language service commands
         // see https://code.visualstudio.com/api/references/commands
-        // tslint:disable: no-any
+        /* eslint-disable @typescript-eslint/no-explicit-any */
         commands.registerCommand(
             {
                 id: 'vscode.executeDocumentSymbolProvider'
@@ -333,7 +366,7 @@ export class PluginVscodeCommandsContribution implements CommandContribution {
             {
                 execute: (resource: URI) => commands.executeCommand('_executeDocumentSymbolProvider',
                     { resource: monaco.Uri.parse(resource.toString()) }
-                ).then((value: any) => {
+                ).then((value: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
                     if (!Array.isArray(value) || value === undefined) {
                         return undefined;
                     }
