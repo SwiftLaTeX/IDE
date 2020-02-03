@@ -19,7 +19,7 @@ import URI from '@theia/core/lib/common/uri';
 import { Endpoint } from '@theia/core/lib/browser';
 import { MaybePromise, Prioritizeable } from '@theia/core/lib/common/types';
 import { ContributionProvider } from '@theia/core/lib/common/contribution-provider';
-
+import { S3StorageSystem } from '@theia/filesystem/lib/browser/s3storagesystem';
 /**
  * Contribution for the `LocationMapperService`.
  */
@@ -126,22 +126,28 @@ export class LocationMapperService {
  */
 @injectable()
 export class FileLocationMapper implements LocationMapper {
+    @inject(S3StorageSystem) protected readonly _s3fs: S3StorageSystem;
 
     canHandle(location: string): MaybePromise<number> {
         return location.startsWith('file://') ? 1 : 0;
     }
 
     map(location: string): MaybePromise<string> {
-        const ENDPOINT = 'https://s3.swiftlatex.com/swiftlatex/';
         const uri = new URI(location);
         if (uri.scheme !== 'file') {
             throw new Error(`Only URIs with 'file' scheme can be mapped to an URL. URI was: ${uri}.`);
         }
         const dstPath = location.substr(7);
-        /* eslint-disable @typescript-eslint/no-explicit-any */
-        const prefix = (<any>window)._PREFIX;
-        const contentType = this.guessContentType(location);
-        return ENDPOINT + prefix + dstPath + '?response-content-type=' + contentType;
+
+        return new Promise((resolve, reject) => {
+            this._s3fs._resolvePath(dstPath).then(node => {
+                if (!node) {
+                    reject(new Error(`Failed to resolve. URI was: ${uri}.`));
+                }
+                const contentType = this.guessContentType(location);
+                resolve(`${this._s3fs.opts.endpoint}/${this._s3fs.opts.bucket}/${this._s3fs.opts.prefix}${node!.node_id}?response-content-type=${contentType}`);
+            });
+        });
         // let rawLocation = uri.path.toString();
         // if (rawLocation.charAt(0) === '/') {
         //     rawLocation = rawLocation.substr(1);

@@ -96,7 +96,7 @@ export class S3Object {
 export class S3StorageSystem {
     private s3: S3 | undefined = undefined;
 
-    private opts: S3StorageSystemOptions = new S3StorageSystemOptions();
+    public opts: S3StorageSystemOptions = new S3StorageSystemOptions();
 
     private s3lock: boolean = false;
 
@@ -640,6 +640,7 @@ export class S3StorageSystem {
             this.opts.apiSecret = json_creds['_APISECRET'];
             this.opts.sessionToken = json_creds['_SESSIONTOKEN'];
             this.opts.prefix = json_creds['_PREFIX'];
+            this.opts.bucket = json_creds['_BUCKET'];
             this.opts.expiry = json_creds['_EXPIRY'] * 1000;
             this.opts.endpoint = json_creds['_ENDPOINT'];
             if (!this.opts.apiKey) {
