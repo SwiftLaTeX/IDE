@@ -15,26 +15,26 @@
  ********************************************************************************/
 
 import { ContainerModule } from 'inversify';
-import { bindContributionProvider, ILogger, ConnectionHandler, JsonRpcConnectionHandler } from '@theia/core/lib/common';
-import { MessagingService } from '@theia/core/lib/node/messaging/messaging-service';
-import { LanguagesBackendContribution } from './languages-backend-contribution';
-import { LanguageServerContribution } from './language-server-contribution';
-import { LanguageContribution } from '../common';
+// import { bindContributionProvider, ILogger, ConnectionHandler, JsonRpcConnectionHandler } from '@theia/core/lib/common';
+// import { MessagingService } from '@theia/core/lib/node/messaging/messaging-service';
+// import { LanguagesBackendContribution } from './languages-backend-contribution';
+// import { LanguageServerContribution } from './language-server-contribution';
+// import { LanguageContribution } from '../common';
 
 export default new ContainerModule(bind => {
-    bind(LanguagesBackendContribution).toSelf().inSingletonScope();
-    bind(MessagingService.Contribution).toService(LanguagesBackendContribution);
-    bind(LanguageContribution.Service).toService(LanguagesBackendContribution);
-    bindContributionProvider(bind, LanguageServerContribution);
+    // bind(LanguagesBackendContribution).toSelf().inSingletonScope();
+    // bind(MessagingService.Contribution).toService(LanguagesBackendContribution);
+    // bind(LanguageContribution.Service).toService(LanguagesBackendContribution);
+    // bindContributionProvider(bind, LanguageServerContribution);
 
-    bind(ConnectionHandler).toDynamicValue(ctx =>
-        new JsonRpcConnectionHandler(LanguageContribution.servicePath, () =>
-            ctx.container.get(LanguageContribution.Service)
-        )
-    ).inSingletonScope();
+    // bind(ConnectionHandler).toDynamicValue(ctx =>
+    //     new JsonRpcConnectionHandler(LanguageContribution.servicePath, () =>
+    //         ctx.container.get(LanguageContribution.Service)
+    //     )
+    // ).inSingletonScope();
 
-    bind(ILogger).toDynamicValue(ctx => {
-        const logger = ctx.container.get<ILogger>(ILogger);
-        return logger.child('languages');
-    }).inSingletonScope().whenTargetNamed('languages');
+    // bind(ILogger).toDynamicValue(ctx => {
+    //     const logger = ctx.container.get<ILogger>(ILogger);
+    //     return logger.child('languages');
+    // }).inSingletonScope().whenTargetNamed('languages');
 });
