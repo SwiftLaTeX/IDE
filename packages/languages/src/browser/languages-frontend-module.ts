@@ -17,7 +17,7 @@
 import { ContainerModule } from 'inversify';
 import { bindContributionProvider, CommandContribution } from '@theia/core/lib/common';
 import { ResourceContextKey } from '@theia/core/lib/browser/resource-context-key';
-import { FrontendApplicationContribution, KeybindingContribution, QuickOpenContribution, WebSocketConnectionProvider } from '@theia/core/lib/browser';
+import { FrontendApplicationContribution, KeybindingContribution, QuickOpenContribution, /* WebSocketConnectionProvider */ } from '@theia/core/lib/browser';
 import { Window } from './language-client-services';
 import { WindowImpl } from './window-impl';
 import { LanguageClientFactory } from './language-client-factory';
@@ -28,14 +28,18 @@ import { LanguageClientProvider } from './language-client-provider';
 import { LanguageClientProviderImpl } from './language-client-provider-impl';
 import { LanguageContribution } from '../common';
 import { LanguageResourceContextKey } from './language-resource-context-key';
+import { LanguageDummyService } from './language-dummy-service';
+import { SwiftLaTeXWebSocketConnectionProvider } from './swiftlatex-connection-provider';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(Window).to(WindowImpl).inSingletonScope();
 
     bind(LanguageClientFactory).toSelf().inSingletonScope();
-    bind(LanguageContribution.Service).toDynamicValue(({ container }) =>
-        WebSocketConnectionProvider.createProxy(container, LanguageContribution.servicePath)
-    ).inSingletonScope();
+    // bind(LanguageContribution.Service).toDynamicValue(({ container }) =>
+    //     WebSocketConnectionProvider.createProxy(container, LanguageContribution.servicePath)
+    // ).inSingletonScope();
+
+    bind(LanguageContribution.Service).to(LanguageDummyService).inSingletonScope();
 
     bindContributionProvider(bind, LanguageClientContribution);
     bind(LanguagesFrontendContribution).toSelf().inSingletonScope();
@@ -52,4 +56,6 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
 
     bind(LanguageResourceContextKey).toSelf().inSingletonScope();
     rebind(ResourceContextKey).to(LanguageResourceContextKey).inSingletonScope();
+
+    bind(SwiftLaTeXWebSocketConnectionProvider).toSelf().inSingletonScope();
 });

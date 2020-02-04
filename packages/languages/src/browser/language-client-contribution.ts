@@ -20,7 +20,6 @@ import { injectable, inject } from 'inversify';
 import { MaybePromise, MessageService, CommandRegistry } from '@theia/core';
 import { Disposable, DisposableCollection } from '@theia/core/lib/common';
 import { FrontendApplication, WebSocketConnectionProvider } from '@theia/core/lib/browser';
-import { ReconnectingWebSocket } from 'reconnecting-websocket';
 import {
     LanguageContribution, ILanguageClient, LanguageClientOptions,
     DocumentSelector, TextDocument, FileSystemWatcher,
@@ -31,7 +30,7 @@ import { LanguageClientFactory } from './language-client-factory';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { InitializeParams } from 'monaco-languageclient';
 import { Deferred } from '@theia/core/lib/common/promise-util';
-
+import { SwiftLaTeXWebSocketConnectionProvider } from './swiftlatex-connection-provider';
 export const LanguageClientContribution = Symbol('LanguageClientContribution');
 export interface LanguageClientContribution extends LanguageContribution {
     readonly running: boolean;
@@ -58,6 +57,7 @@ export abstract class BaseLanguageClientContribution implements LanguageClientCo
     @inject(WorkspaceService) protected readonly workspaceService: WorkspaceService;
     @inject(LanguageContribution.Service) protected readonly languageContributionService: LanguageContribution.Service;
     @inject(WebSocketConnectionProvider) protected readonly connectionProvider: WebSocketConnectionProvider;
+    @inject(SwiftLaTeXWebSocketConnectionProvider) protected readonly swiftConnectionProvider: SwiftLaTeXWebSocketConnectionProvider;
 
     constructor(
         @inject(Workspace) protected readonly workspace: Workspace,
@@ -138,7 +138,7 @@ export abstract class BaseLanguageClientContribution implements LanguageClientCo
                 return;
             }
             toStop.push(Disposable.create(() => this.languageContributionService.destroy(sessionId)));
-            this.connectionProvider.listen({
+            this.swiftConnectionProvider.listen({
                 path: LanguageContribution.getPath(this, sessionId),
                 onConnection: messageConnection => {
                     this.deferredConnection.resolve(messageConnection);
@@ -205,17 +205,6 @@ export abstract class BaseLanguageClientContribution implements LanguageClientCo
         this.ready = new Promise<ILanguageClient>(resolve =>
             this.resolveReady = resolve
         );
-    }
-
-    protected createWebSocket(url: string): ReconnectingWebSocket {
-        return new ReconnectingWebSocket(url, undefined, {
-            maxReconnectionDelay: 10000,
-            minReconnectionDelay: 1000,
-            reconnectionDelayGrowFactor: 1.3,
-            connectionTimeout: 10000,
-            maxRetries: Infinity,
-            debug: false
-        });
     }
 
     protected createLanguageClient(connection: MessageConnection | (() => MaybePromise<MessageConnection>)): ILanguageClient {
