@@ -20,6 +20,7 @@ import { injectable, inject } from 'inversify';
 import { MaybePromise, MessageService, CommandRegistry } from '@theia/core';
 import { Disposable, DisposableCollection } from '@theia/core/lib/common';
 import { FrontendApplication, WebSocketConnectionProvider } from '@theia/core/lib/browser';
+import { ReconnectingWebSocket } from 'reconnecting-websocket';
 import {
     LanguageContribution, ILanguageClient, LanguageClientOptions,
     DocumentSelector, TextDocument, FileSystemWatcher,
@@ -204,6 +205,17 @@ export abstract class BaseLanguageClientContribution implements LanguageClientCo
         this.ready = new Promise<ILanguageClient>(resolve =>
             this.resolveReady = resolve
         );
+    }
+
+    protected createWebSocket(url: string): ReconnectingWebSocket {
+        return new ReconnectingWebSocket(url, undefined, {
+            maxReconnectionDelay: 10000,
+            minReconnectionDelay: 1000,
+            reconnectionDelayGrowFactor: 1.3,
+            connectionTimeout: 10000,
+            maxRetries: Infinity,
+            debug: false
+        });
     }
 
     protected createLanguageClient(connection: MessageConnection | (() => MaybePromise<MessageConnection>)): ILanguageClient {

@@ -6,11 +6,11 @@
     "@theia/application-package": "^0.15.0",
     "@theia/core": "^0.15.0",
     "@theia/output": "^0.15.0",
-    "@theia/process": "^0.15.0",
     "@theia/workspace": "^0.15.0",
     "@typefox/monaco-editor-core": "^0.18.0-next",
     "@types/uuid": "^3.4.3",
     "monaco-languageclient": "^0.10.2",
+    "reconnecting-websocket": "^4.3.0",
     "uuid": "^3.2.1"
   },
   "publishConfig": {
