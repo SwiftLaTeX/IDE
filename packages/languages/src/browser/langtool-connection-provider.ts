@@ -20,7 +20,8 @@ import { ConnectionHandler } from '@theia/core/lib/common';
 import { WebSocketChannel } from '@theia/core/lib/common/messaging/web-socket-channel';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 
-interface SwiftSocketOptions {
+const LANGTOOL_URL = 'ws://localhost:9999';
+interface LangToolSocketOptions {
     /**
      * True by default.
      */
@@ -28,15 +29,14 @@ interface SwiftSocketOptions {
 }
 
 @injectable()
-export class SwiftLaTeXWebSocketConnectionProvider {
+export class LangToolWebSocketConnectionProvider {
 
     protected channelIdSeq = 0;
     protected readonly socket: ReconnectingWebSocket;
     protected readonly channels = new Map<number, WebSocketChannel>();
 
     constructor() {
-        const url = 'ws://localhost:9999';
-        const socket = this.createWebSocket(url);
+        const socket = this.createWebSocket(LANGTOOL_URL);
         socket.onerror = console.error;
         socket.onclose = ({ code, reason }) => {
             for (const channel of [...this.channels.values()]) {
@@ -58,7 +58,7 @@ export class SwiftLaTeXWebSocketConnectionProvider {
     /**
      * Install a connection handler for the given path.
      */
-    listen(handler: ConnectionHandler, options?: SwiftSocketOptions): void {
+    listen(handler: ConnectionHandler, options?: LangToolSocketOptions): void {
         this.openChannel(handler.path, channel => {
             const connection = createWebSocketConnection(channel, this.createLogger());
             connection.onDispose(() => channel.close());
@@ -66,7 +66,7 @@ export class SwiftLaTeXWebSocketConnectionProvider {
         }, options);
     }
 
-    openChannel(path: string, handler: (channel: WebSocketChannel) => void, options?: SwiftSocketOptions): void {
+    openChannel(path: string, handler: (channel: WebSocketChannel) => void, options?: LangToolSocketOptions): void {
         if (this.socket.readyState === WebSocket.OPEN) {
             this.doOpenChannel(path, handler, options);
         } else {
@@ -78,7 +78,7 @@ export class SwiftLaTeXWebSocketConnectionProvider {
         }
     }
 
-    protected doOpenChannel(path: string, handler: (channel: WebSocketChannel) => void, options?: SwiftSocketOptions): void {
+    protected doOpenChannel(path: string, handler: (channel: WebSocketChannel) => void, options?: LangToolSocketOptions): void {
         const id = this.channelIdSeq++;
         const channel = this.createChannel(id);
         this.channels.set(id, channel);

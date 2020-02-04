@@ -29,7 +29,7 @@ import { LanguageClientProviderImpl } from './language-client-provider-impl';
 import { LanguageContribution } from '../common';
 import { LanguageResourceContextKey } from './language-resource-context-key';
 import { LanguageDummyService } from './language-dummy-service';
-import { SwiftLaTeXWebSocketConnectionProvider } from './swiftlatex-connection-provider';
+import { LangToolWebSocketConnectionProvider } from './langtool-connection-provider';
 
 export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(Window).to(WindowImpl).inSingletonScope();
@@ -57,5 +57,5 @@ export default new ContainerModule((bind, unbind, isBound, rebind) => {
     bind(LanguageResourceContextKey).toSelf().inSingletonScope();
     rebind(ResourceContextKey).to(LanguageResourceContextKey).inSingletonScope();
 
-    bind(SwiftLaTeXWebSocketConnectionProvider).toSelf().inSingletonScope();
+    bind(LangToolWebSocketConnectionProvider).toSelf().inSingletonScope();
 });

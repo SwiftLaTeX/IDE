@@ -30,7 +30,7 @@ import { LanguageClientFactory } from './language-client-factory';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { InitializeParams } from 'monaco-languageclient';
 import { Deferred } from '@theia/core/lib/common/promise-util';
-import { SwiftLaTeXWebSocketConnectionProvider } from './swiftlatex-connection-provider';
+import { LangToolWebSocketConnectionProvider } from './langtool-connection-provider';
 export const LanguageClientContribution = Symbol('LanguageClientContribution');
 export interface LanguageClientContribution extends LanguageContribution {
     readonly running: boolean;
@@ -57,7 +57,7 @@ export abstract class BaseLanguageClientContribution implements LanguageClientCo
     @inject(WorkspaceService) protected readonly workspaceService: WorkspaceService;
     @inject(LanguageContribution.Service) protected readonly languageContributionService: LanguageContribution.Service;
     @inject(WebSocketConnectionProvider) protected readonly connectionProvider: WebSocketConnectionProvider;
-    @inject(SwiftLaTeXWebSocketConnectionProvider) protected readonly swiftConnectionProvider: SwiftLaTeXWebSocketConnectionProvider;
+    @inject(LangToolWebSocketConnectionProvider) protected readonly langtoolConnectionProvider: LangToolWebSocketConnectionProvider;
 
     constructor(
         @inject(Workspace) protected readonly workspace: Workspace,
@@ -138,7 +138,7 @@ export abstract class BaseLanguageClientContribution implements LanguageClientCo
                 return;
             }
             toStop.push(Disposable.create(() => this.languageContributionService.destroy(sessionId)));
-            this.swiftConnectionProvider.listen({
+            this.langtoolConnectionProvider.listen({
                 path: LanguageContribution.getPath(this, sessionId),
                 onConnection: messageConnection => {
                     this.deferredConnection.resolve(messageConnection);
