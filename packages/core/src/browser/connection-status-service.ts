@@ -60,7 +60,7 @@ export enum ConnectionStatus {
 export class ConnectionStatusOptions {
 
     static DEFAULT: ConnectionStatusOptions = {
-        offlineTimeout: 5000,
+        offlineTimeout: 60000,
     };
 
     /**

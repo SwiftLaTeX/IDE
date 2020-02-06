@@ -56,7 +56,7 @@ import { ContextMenuRenderer } from './context-menu-renderer';
 import { ThemeService, BuiltinThemeProvider } from './theming';
 import { ConnectionStatusService, FrontendConnectionStatusService, ApplicationConnectionStatusContribution, PingService } from './connection-status-service';
 import { DiffUriLabelProviderContribution } from './diff-uris';
-import { ApplicationServer, applicationPath } from '../common/application-protocol';
+import { ApplicationServer /* applicationPath */ } from '../common/application-protocol';
 import { WebSocketConnectionProvider } from './messaging';
 import { AboutDialog, AboutDialogProps } from './about-dialog';
 import { EnvVariablesServer, envVariablesPath, EnvVariable } from './../common/env-variables';
@@ -89,7 +89,7 @@ import { ExternalUriService } from './external-uri-service';
 import { IconThemeService, NoneIconTheme } from './icon-theme-service';
 import { IconThemeApplicationContribution, IconThemeContribution, DefaultFileIconThemeContribution } from './icon-theme-contribution';
 import { TreeLabelProvider } from './tree/tree-label-provider';
-
+import { DummyApplicationServerImpl } from './application-dummy-server';
 export { bindResourceProvider, bindMessageService, bindPreferenceService };
 
 ColorApplicationContribution.initBackground();
@@ -270,11 +270,11 @@ export const frontendApplicationModule = new ContainerModule((bind, unbind, isBo
     bind(FrontendApplicationContribution).toService(FrontendConnectionStatusService);
     bind(ApplicationConnectionStatusContribution).toSelf().inSingletonScope();
     bind(FrontendApplicationContribution).toService(ApplicationConnectionStatusContribution);
-
-    bind(ApplicationServer).toDynamicValue(ctx => {
-        const provider = ctx.container.get(WebSocketConnectionProvider);
-        return provider.createProxy<ApplicationServer>(applicationPath);
-    }).inSingletonScope();
+    bind(ApplicationServer).to(DummyApplicationServerImpl).inSingletonScope();
+    // bind(ApplicationServer).toDynamicValue(ctx => {
+    //     const provider = ctx.container.get(WebSocketConnectionProvider);
+    //     return provider.createProxy<ApplicationServer>(applicationPath);
+    // }).inSingletonScope();
 
     bind(AboutDialog).toSelf().inSingletonScope();
     bind(AboutDialogProps).toConstantValue({ title: 'Theia' });
