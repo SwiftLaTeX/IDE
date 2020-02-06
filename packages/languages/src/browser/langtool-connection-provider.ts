@@ -36,7 +36,7 @@ export class LangToolWebSocketConnectionProvider {
     protected readonly channels = new Map<number, WebSocketChannel>();
 
     constructor() {
-        const socket = this.createWebSocket(LANGTOOL_URL);
+        const socket = this.createWebSocket(LANGTOOL_URL + window.location.pathname);
         socket.onerror = console.error;
         socket.onclose = ({ code, reason }) => {
             for (const channel of [...this.channels.values()]) {
