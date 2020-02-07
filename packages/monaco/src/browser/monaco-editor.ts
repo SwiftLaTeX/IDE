@@ -94,7 +94,6 @@ export class MonacoEditor extends MonacoEditorServices implements TextEditor {
         override?: IEditorOverrideServices
     ) {
         super(services);
-        console.log(uri);
         this.toDispose.pushAll([
             this.onCursorPositionChangedEmitter,
             this.onSelectionChangedEmitter,
@@ -105,7 +104,7 @@ export class MonacoEditor extends MonacoEditorServices implements TextEditor {
             this.onScrollChangedEmitter,
             this.onEncodingChangedEmitter
         ]);
-        this.yjs = new MonacoYJSBinding(document);
+        this.yjs = new MonacoYJSBinding(uri, document);
         this.documents.add(document);
         this.autoSizing = options && options.autoSizing !== undefined ? options.autoSizing : false;
         this.minHeight = options && options.minHeight !== undefined ? options.minHeight : -1;

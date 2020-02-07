@@ -15,8 +15,106 @@
  ********************************************************************************/
 
 import { MonacoEditorModel } from './monaco-editor-model';
+import URI from '@theia/core/lib/common/uri';
+import * as Y from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const createMutex = () => {
+	let token = true;
+	return (f: any, g: any) => {
+		if (token) {
+			token = false;
+			try {
+				f();
+			} finally {
+				token = true;
+			};
+		} else if (g !== undefined) {
+			g();
+		};
+	};
+};
 
 export class MonacoYJSBinding {
-    constructor(protected monacoModel: MonacoEditorModel) {
-    }
+	private mux: any;
+	private monacoHander: monaco.IDisposable;
+	constructor(protected uri: URI, protected monacoModel: MonacoEditorModel) {
+		this.mux = createMutex();
+		this.init_yjs(monacoModel.textEditorModel, uri);
+	}
+
+	init_yjs(monacoModel: monaco.editor.IModel, uri: URI): void {
+		console.log('Opening url ' + uri.toString());
+		const ydoc = new Y.Doc();
+		const unique_id = (window.location.pathname + uri.toString()).replace(/\//gm, '_').replace(':', '_').replace(/\./gm, '_');
+		const provider = new WebsocketProvider('wss://demos.yjs.dev', unique_id, ydoc);
+		const ytext = ydoc.getText('document');
+
+		provider.on('sync', () => {
+			const remote_source = ytext.toString();
+			const local_source = monacoModel.getValue();
+			if (remote_source === local_source) {
+				console.log('All synced');
+			} else {
+				if (remote_source.length === 0) {
+					ytext.insert(0, local_source);
+					console.log('Using local source');
+				} else {
+					monacoModel.setValue(remote_source);
+					console.log('Trusting remote source');
+				}
+			}
+
+			console.log('Start binding editor events');
+			this.monacoHander = monacoModel.onDidChangeContent(event => {
+				this.mux(() => {
+					ydoc!.transact(() => {
+						event.changes.sort((change1, change2) => change2.rangeOffset - change1.rangeOffset).forEach(change => {
+							ytext.delete(change.rangeOffset, change.rangeLength);
+							ytext.insert(change.rangeOffset, change.text);
+						});
+					}, this);
+				});
+			});
+
+			console.log('Start binding yjs events');
+			ytext.observe(event => {
+				this.mux(() => {
+					let index = 0;
+					event.delta.forEach(op => {
+						if (op.retain !== undefined) {
+							index += op.retain;
+						} else if ((<any>op).insert !== undefined) {
+							const pos = monacoModel.getPositionAt(index);
+							const range = new monaco.Selection(pos.lineNumber, pos.column, pos.lineNumber, pos.column);
+							/* eslint-disable */
+							monacoModel.pushEditOperations([], [{ range, text: (<any>op).insert }], () => null);
+							index += (<any>op).insert.length;
+							/* eslint-enable */
+						} else if (op.delete !== undefined) {
+							const pos = monacoModel.getPositionAt(index);
+							const endPos = monacoModel.getPositionAt(index + op.delete);
+							const range = new monaco.Selection(pos.lineNumber, pos.column, endPos.lineNumber, endPos.column);
+							/* eslint-disable */
+							monacoModel.pushEditOperations([], [{ range, text: '' }], () => null);
+							/* eslint-enable */
+						} else {
+							throw Error('Unexpected sync protocol');
+						}
+					});
+					monacoModel.pushStackElement();
+				});
+			});
+		});
+
+		monacoModel.onWillDispose(() => {
+			console.log('Disposing editor event handlers');
+			this.monacoHander.dispose();
+			ytext._eH.l.length = 0;
+			provider.disconnect();
+			ydoc.destroy();
+		});
+
+		provider.connect();
+	}
 }

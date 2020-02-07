@@ -20,7 +20,7 @@ import { ConnectionHandler } from '@theia/core/lib/common';
 import { WebSocketChannel } from '@theia/core/lib/common/messaging/web-socket-channel';
 import ReconnectingWebSocket from 'reconnecting-websocket';
 
-const LANGTOOL_URL = 'ws://localhost:9999';
+const LANGTOOL_URL = 'wss://spell.swiftlatex.com';
 interface LangToolSocketOptions {
     /**
      * True by default.
