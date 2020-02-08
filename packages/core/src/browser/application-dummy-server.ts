@@ -21,15 +21,41 @@ import { ApplicationServer, ExtensionInfo, ApplicationInfo } from '../common/app
 @injectable()
 export class DummyApplicationServerImpl implements ApplicationServer {
 
-    getExtensionsInfos(): Promise<ExtensionInfo[]> {
-        return Promise.resolve([]);
-    }
+	getExtensionsInfos(): Promise<ExtensionInfo[]> {
+		const extensions: ExtensionInfo[] = [
+			{
+				name: 'Minio Filesystem (AGPL3)',
+				version: '0.1'
+			},
+			{
+				name: 'YJS Editor (MIT)',
+				version: '13.05'
+			},
+			{
+				name: 'TexLab (GPL3)',
+				version: '0.7'
+			},
+			{
+				name: 'XeTeX (MIT)',
+				version: '0.9999'
+			},
+			{
+				name: 'Swift WYSIWYG (Proprietary)',
+				version: '0.1'
+			},
+			{
+				name: 'Theia (Eclipse 2)',
+				version: '0.15.0'
+			}
+		];
+		return Promise.resolve(extensions);
+	}
 
-    getApplicationInfo(): Promise<ApplicationInfo | undefined> {
-        return Promise.resolve(undefined);
-    }
+	getApplicationInfo(): Promise<ApplicationInfo | undefined> {
+		return Promise.resolve(undefined);
+	}
 
-    async getBackendOS(): Promise<OS.Type> {
-        return OS.Type.Linux;
-    }
+	async getBackendOS(): Promise<OS.Type> {
+		return OS.Type.Linux;
+	}
 }

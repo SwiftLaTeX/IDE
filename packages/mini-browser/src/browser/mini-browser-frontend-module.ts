@@ -34,10 +34,10 @@ import { MiniBrowserProps, MiniBrowserContentFactory, MiniBrowserContent } from 
 import {
     LocationMapperService,
     FileLocationMapper,
-    // HttpLocationMapper,
-    // HttpsLocationMapper,
+    HttpLocationMapper,
+    HttpsLocationMapper,
     LocationMapper,
-    // LocationWithoutSchemeMapper,
+    LocationWithoutSchemeMapper,
 } from './location-mapper-service';
 import { MiniBrowserDummyServer } from './mini-browser-dummy-server';
 
@@ -72,10 +72,10 @@ export default new ContainerModule(bind => {
 
     bindContributionProvider(bind, LocationMapper);
     bind(LocationMapper).to(FileLocationMapper).inSingletonScope();
-    // bind(LocationMapper).to(HttpLocationMapper).inSingletonScope();
-    // bind(LocationMapper).to(HttpsLocationMapper).inSingletonScope();
-    // bind(LocationWithoutSchemeMapper).toSelf().inSingletonScope();
-    // bind(LocationMapper).toService(LocationWithoutSchemeMapper);
+    bind(LocationMapper).to(HttpLocationMapper).inSingletonScope();
+    bind(LocationMapper).to(HttpsLocationMapper).inSingletonScope();
+    bind(LocationWithoutSchemeMapper).toSelf().inSingletonScope();
+    bind(LocationMapper).toService(LocationWithoutSchemeMapper);
     bind(LocationMapperService).toSelf().inSingletonScope();
     bind(MiniBrowserService).to(MiniBrowserDummyServer).inSingletonScope();
     // bind(MiniBrowserService).toDynamicValue(context => WebSocketConnectionProvider.createProxy(context.container, MiniBrowserServicePath)).inSingletonScope();

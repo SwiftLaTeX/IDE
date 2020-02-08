@@ -38,6 +38,7 @@ const createMutex = () => {
 export class MonacoYJSBinding {
 	private mux: any;
 	private monacoHander: monaco.IDisposable;
+	private isDisposed: boolean = false; /* Dirty Hack */
 	constructor(protected uri: URI, protected monacoModel: MonacoEditorModel) {
 		this.mux = createMutex();
 		this.init_yjs(monacoModel.textEditorModel, uri);
@@ -47,10 +48,11 @@ export class MonacoYJSBinding {
 		console.log('Opening url ' + uri.toString());
 		const ydoc = new Y.Doc();
 		const unique_id = (window.location.pathname + uri.toString()).replace(/\//gm, '_').replace(':', '_').replace(/\./gm, '_');
-		const provider = new WebsocketProvider('wss://demos.yjs.dev', unique_id, ydoc);
+		const provider = new WebsocketProvider('wss://share.swiftlatex.com', unique_id, ydoc);
 		const ytext = ydoc.getText('document');
 
 		provider.on('sync', () => {
+			if (this.isDisposed) return;
 			const remote_source = ytext.toString();
 			const local_source = monacoModel.getValue();
 			if (remote_source === local_source) {
@@ -108,11 +110,12 @@ export class MonacoYJSBinding {
 		});
 
 		monacoModel.onWillDispose(() => {
+			this.isDisposed = true;
 			console.log('Disposing editor event handlers');
 			this.monacoHander.dispose();
 			ytext._eH.l.length = 0;
-			provider.disconnect();
 			ydoc.destroy();
+			provider.disconnect();
 		});
 
 		provider.connect();

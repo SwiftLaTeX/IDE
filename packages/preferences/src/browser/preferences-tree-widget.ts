@@ -35,7 +35,8 @@ import {
     TreeProps,
     TreeWidget,
     WidgetManager,
-    PreferenceProvider
+    PreferenceProvider,
+    LabelProvider
 } from '@theia/core/lib/browser';
 import { UserPreferenceProvider } from './user-preference-provider';
 import { WorkspacePreferenceProvider } from './workspace-preference-provider';
@@ -255,6 +256,9 @@ export class PreferencesEditorsContainer extends DockPanel {
     @inject(EditorManager)
     protected readonly editorManager: EditorManager;
 
+    @inject(LabelProvider)
+    protected readonly labelProvider: LabelProvider;
+
     @inject(PreferenceProvider) @named(PreferenceScope.User)
     protected readonly userPreferenceProvider: UserPreferenceProvider;
 
@@ -278,6 +282,8 @@ export class PreferencesEditorsContainer extends DockPanel {
         this.onEditorChangedEmitter,
         this.onInitEmitter
     );
+
+    protected readonly toDisposeOnDetach = new DisposableCollection();
 
     constructor(
         @inject(WorkspaceService) protected readonly workspaceService: WorkspaceService,
@@ -306,6 +312,10 @@ export class PreferencesEditorsContainer extends DockPanel {
         super.onUpdateRequest(msg);
     }
 
+    onBeforeDetach(): void {
+        this.toDisposeOnDetach.dispose();
+    }
+
     protected async onAfterAttach(msg: Message): Promise<void> {
         this.userPreferenceEditorWidget = await this.getUserPreferenceEditorWidget();
         this.addWidget(this.userPreferenceEditorWidget);
@@ -314,12 +324,25 @@ export class PreferencesEditorsContainer extends DockPanel {
 
         super.onAfterAttach(msg);
         this.onInitEmitter.fire(undefined);
+        this.toDisposeOnDetach.push(
+            this.labelProvider.onDidChange(() => {
+                // Listen to changes made by the label provider and apply updates to the preference editors.
+                const icon = this.labelProvider.getIcon(new URI('settings.json'));
+                this.userPreferenceEditorWidget.title.iconClass = icon;
+                if (this.workspacePreferenceEditorWidget) {
+                    // Explicitly update the workspace preference title to `Workspace` for single and multi-root workspaces.
+                    this.workspacePreferenceEditorWidget.title.label = 'Workspace';
+                    this.workspacePreferenceEditorWidget.title.iconClass = icon;
+                }
+            })
+        );
     }
 
     protected async getUserPreferenceEditorWidget(): Promise<PreferencesEditorWidget> {
         const userPreferenceUri = this.userPreferenceProvider.getConfigUri();
         const userPreferences = await this.editorManager.getOrCreateByUri(userPreferenceUri) as PreferencesEditorWidget;
         userPreferences.title.label = 'User';
+        userPreferences.title.iconClass = this.labelProvider.getIcon(new URI('settings.json'));
         userPreferences.title.caption = `User Preferences: ${await this.getPreferenceEditorCaption(userPreferenceUri)}`;
         userPreferences.scope = PreferenceScope.User;
         return userPreferences;
@@ -345,8 +368,8 @@ export class PreferencesEditorsContainer extends DockPanel {
         if (workspacePreferences) {
             workspacePreferences.title.label = 'Workspace';
             workspacePreferences.title.caption = `Workspace Preferences: ${await this.getPreferenceEditorCaption(workspacePreferenceUri!)}`;
-            workspacePreferences.title.iconClass = 'database-icon medium-yellow file-icon';
-            // workspacePreferences.editor.setLanguage(JSONC_LANGUAGE_ID);
+            workspacePreferences.title.iconClass = this.labelProvider.getIcon(new URI('settings.json'));
+            // workspacePreferences.editor.setLanguage('jsonc');
             workspacePreferences.scope = PreferenceScope.Workspace;
         }
         return workspacePreferences;

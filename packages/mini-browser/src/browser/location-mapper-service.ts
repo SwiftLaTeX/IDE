@@ -73,53 +73,53 @@ export class LocationMapperService {
 
 }
 
-// /**
-//  * HTTP location mapper.
-//  */
-// @injectable()
-// export class HttpLocationMapper implements LocationMapper {
+/**
+ * HTTP location mapper.
+ */
+@injectable()
+export class HttpLocationMapper implements LocationMapper {
 
-//     canHandle(location: string): MaybePromise<number> {
-//         return location.startsWith('http://') ? 1 : 0;
-//     }
+    canHandle(location: string): MaybePromise<number> {
+        return location.startsWith('http://') ? 1 : 0;
+    }
 
-//     map(location: string): MaybePromise<string> {
-//         return location;
-//     }
+    map(location: string): MaybePromise<string> {
+        return location;
+    }
 
-// }
+}
 
 // /**
 //  * HTTPS location mapper.
 //  */
-// @injectable()
-// export class HttpsLocationMapper implements LocationMapper {
+@injectable()
+export class HttpsLocationMapper implements LocationMapper {
 
-//     canHandle(location: string): MaybePromise<number> {
-//         return location.startsWith('https://') ? 1 : 0;
-//     }
+    canHandle(location: string): MaybePromise<number> {
+        return location.startsWith('https://') ? 1 : 0;
+    }
 
-//     map(location: string): MaybePromise<string> {
-//         return location;
-//     }
+    map(location: string): MaybePromise<string> {
+        return location;
+    }
 
-// }
+}
 
-// /**
-//  * Location mapper for locations without a scheme.
-//  */
-// @injectable()
-// export class LocationWithoutSchemeMapper implements LocationMapper {
+/**
+ * Location mapper for locations without a scheme.
+ */
+@injectable()
+export class LocationWithoutSchemeMapper implements LocationMapper {
 
-//     canHandle(location: string): MaybePromise<number> {
-//         return new URI(location).scheme === '' ? 1 : 0;
-//     }
+    canHandle(location: string): MaybePromise<number> {
+        return new URI(location).scheme === '' ? 1 : 0;
+    }
 
-//     map(location: string): MaybePromise<string> {
-//         return `http://${location}`;
-//     }
+    map(location: string): MaybePromise<string> {
+        return `http://${location}`;
+    }
 
-// }
+}
 
 /**
  * `file` URI location mapper.
@@ -178,6 +178,10 @@ export class FileLocationMapper implements LocationMapper {
 
         if (path.endsWith('.pdf')) {
             return 'application/pdf';
+        }
+
+        if (path.endsWith('.html')) {
+            return 'text/html';
         }
 
         return 'application/octet-stream';
