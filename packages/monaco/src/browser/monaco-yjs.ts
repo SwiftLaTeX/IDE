@@ -38,7 +38,7 @@ const createMutex = () => {
 export class MonacoYJSBinding {
 	private mux: any;
 	private monacoHander: monaco.IDisposable;
-	private isDisposed: boolean = false; /* Dirty Hack */
+	private hasInited: boolean = false; /* Prevent multiple sync events */
 	constructor(protected uri: URI, protected monacoModel: MonacoEditorModel) {
 		this.mux = createMutex();
 		this.init_yjs(monacoModel.textEditorModel, uri);
@@ -52,7 +52,10 @@ export class MonacoYJSBinding {
 		const ytext = ydoc.getText('document');
 
 		provider.on('sync', () => {
-			if (this.isDisposed) return;
+			if (this.hasInited) {
+				return;
+			}
+			this.hasInited = true;
 			const remote_source = ytext.toString();
 			const local_source = monacoModel.getValue();
 			if (remote_source === local_source) {
@@ -110,7 +113,8 @@ export class MonacoYJSBinding {
 		});
 
 		monacoModel.onWillDispose(() => {
-			this.isDisposed = true;
+			/* To debounce */
+			this.hasInited = true;
 			console.log('Disposing editor event handlers');
 			this.monacoHander.dispose();
 			ytext._eH.l.length = 0;
