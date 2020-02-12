@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /********************************************************************************
- * Copyright (c) 2018 TypeFox and others
+ * Copyright (c) 2018-2020 TypeFox and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -27,7 +27,7 @@ const os = require('os');
 
 const directories = ['node_modules'];
 
-const workspaces = JSON.parse(JSON.parse(child_process.execSync('yarn workspaces info --json').toString()).data);
+const workspaces = JSON.parse(JSON.parse(child_process.execSync('yarn workspaces --json info').toString()).data);
 for (const name in workspaces) {
     const workspace = workspaces[name];
     const nodeModulesPath = [workspace.location, 'node_modules'].join('/');
@@ -51,5 +51,5 @@ const startIndex = content.indexOf('# start_cache_directories') + '# start_cache
 const endIndex = content.indexOf('# end_cache_directories');
 const result = content.substr(0, startIndex) + endOfLine +
     directories.sort((d, d2) => d.localeCompare(d2)).map(d => `    - ${d}${endOfLine}`).join('') +
-    content.substr(endIndex);
+    '    ' + content.substr(endIndex);
 fs.writeFileSync(travisPath, result);
