@@ -54,7 +54,7 @@ export class WebSocketConnectionProvider {
     protected channelIdSeq = 0;
     protected readonly socket: ReconnectingWebSocket;
     protected readonly channels = new Map<number, WebSocketChannel>();
-
+    protected hasStarted: boolean = false;
     protected readonly onIncomingMessageActivityEmitter: Emitter<void> = new Emitter();
     public onIncomingMessageActivity: Event<void> = this.onIncomingMessageActivityEmitter.event;
 
@@ -114,6 +114,7 @@ export class WebSocketConnectionProvider {
     }
 
     openChannel(path: string, handler: (channel: WebSocketChannel) => void, options?: WebSocketOptions): void {
+        this.checkWebSocketStatus();
         if (this.socket.readyState === WebSocket.OPEN) {
             this.doOpenChannel(path, handler, options);
         } else {
@@ -173,8 +174,16 @@ export class WebSocketConnectionProvider {
             reconnectionDelayGrowFactor: 1.3,
             connectionTimeout: 10000,
             maxRetries: Infinity,
-            debug: false
+            debug: false,
+            startClosed: true
         });
+    }
+
+    protected checkWebSocketStatus(): void {
+        if (!this.hasStarted) {
+            this.hasStarted = true;
+            this.socket.reconnect();
+        }
     }
 
 }

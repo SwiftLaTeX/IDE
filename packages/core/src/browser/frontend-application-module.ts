@@ -59,7 +59,7 @@ import { DiffUriLabelProviderContribution } from './diff-uris';
 import { ApplicationServer /* applicationPath */ } from '../common/application-protocol';
 // import { WebSocketConnectionProvider } from './messaging';
 import { AboutDialog, AboutDialogProps } from './about-dialog';
-import { EnvVariablesServer, /* envVariablesPath, */ EnvVariable } from './../common/env-variables';
+import { EnvVariablesServer, /* envVariablesPath, EnvVariable */ } from './../common/env-variables';
 import { EnvVariablesDummyServer } from './EnvVariablesDummyServer';
 import { FrontendApplicationStateService } from './frontend-application-state';
 import { JsonSchemaStore } from './json-schema-store';
@@ -258,11 +258,14 @@ export const frontendApplicationModule = new ContainerModule((bind, unbind, isBo
     bind(JsonSchemaStore).toSelf().inSingletonScope();
 
     bind(PingService).toDynamicValue(ctx => {
-        // let's reuse a simple and cheap service from this package
-        const envServer: EnvVariablesServer = ctx.container.get(EnvVariablesServer);
+        /* Suppress Linter Error */
+        console.log('Using SwiftLaTeX portal for PingService.');
         return {
-            ping(): Promise<EnvVariable | undefined> {
-                return envServer.getValue('does_not_matter');
+            async ping(): Promise<void> {
+                const response = await fetch('/ping');
+                if (!response.ok) {
+                    throw Error('Unable to ping SwiftLaTeX server.');
+                }
             }
         };
     });
