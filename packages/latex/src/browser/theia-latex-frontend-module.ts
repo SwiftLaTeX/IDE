@@ -18,9 +18,20 @@
 import { LaTeXClientContribution } from './theia-latex-contribution';
 import { LanguageClientContribution } from '@theia/languages/lib/browser';
 import { ContainerModule } from 'inversify';
+import { LaTeXCommandContribution, LaTeXMenuContribution } from './theia-latex-contribution';
+import { CommandContribution, MenuContribution } from '@theia/core/lib/common';
+import { LaTeXEngine } from './latex-engine';
+import { XDVExporter } from './xdv-exporter';
 
 export default new ContainerModule(bind => {
-    // add your contribution bindings here
-    bind(LaTeXClientContribution).toSelf().inSingletonScope();
-    bind(LanguageClientContribution).toDynamicValue(ctx => ctx.container.get(LaTeXClientContribution));
+	// add your contribution bindings here
+	bind(LaTeXEngine).toSelf().inSingletonScope();
+	bind(XDVExporter).toSelf().inSingletonScope();
+	bind(LaTeXClientContribution).toSelf().inSingletonScope();
+	bind(LanguageClientContribution).toDynamicValue(ctx => ctx.container.get(LaTeXClientContribution));
+	bind(LaTeXCommandContribution).toSelf().inSingletonScope();
+	bind(CommandContribution).toService(LaTeXCommandContribution);
+	bind(LaTeXMenuContribution).toSelf().inSingletonScope();
+	bind(MenuContribution).toService(LaTeXMenuContribution);
+
 });

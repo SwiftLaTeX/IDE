@@ -57,9 +57,10 @@ import { ThemeService, BuiltinThemeProvider } from './theming';
 import { ConnectionStatusService, FrontendConnectionStatusService, ApplicationConnectionStatusContribution, PingService } from './connection-status-service';
 import { DiffUriLabelProviderContribution } from './diff-uris';
 import { ApplicationServer /* applicationPath */ } from '../common/application-protocol';
-import { WebSocketConnectionProvider } from './messaging';
+// import { WebSocketConnectionProvider } from './messaging';
 import { AboutDialog, AboutDialogProps } from './about-dialog';
-import { EnvVariablesServer, envVariablesPath, EnvVariable } from './../common/env-variables';
+import { EnvVariablesServer, /* envVariablesPath, */ EnvVariable } from './../common/env-variables';
+import { EnvVariablesDummyServer } from './EnvVariablesDummyServer';
 import { FrontendApplicationStateService } from './frontend-application-state';
 import { JsonSchemaStore } from './json-schema-store';
 import { TabBarToolbarRegistry, TabBarToolbarContribution, TabBarToolbarFactory, TabBarToolbar } from './shell/tab-bar-toolbar';
@@ -279,10 +280,12 @@ export const frontendApplicationModule = new ContainerModule((bind, unbind, isBo
     bind(AboutDialog).toSelf().inSingletonScope();
     bind(AboutDialogProps).toConstantValue({ title: 'Theia' });
 
-    bind(EnvVariablesServer).toDynamicValue(ctx => {
-        const connection = ctx.container.get(WebSocketConnectionProvider);
-        return connection.createProxy<EnvVariablesServer>(envVariablesPath);
-    }).inSingletonScope();
+    bind(EnvVariablesServer).to(EnvVariablesDummyServer).inSingletonScope();
+
+    //     toDynamicValue(ctx => {
+    //     const connection = ctx.container.get(WebSocketConnectionProvider);
+    //     return connection.createProxy<EnvVariablesServer>(envVariablesPath);
+    // }).inSingletonScope();
 
     bind(ThemeService).toDynamicValue(() => ThemeService.get());
 

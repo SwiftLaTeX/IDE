@@ -5,7 +5,6 @@
   ],
   "version": "0.0.0",
   "files": [
-    "/data",
     "/lib",
     "/src"
   ],
@@ -17,19 +16,21 @@
     "@theia/monaco": "^0.15.0"
   },
   "devDependencies": {
-    "lerna": "2.4.0",
-    "rimraf": "latest",
-    "typescript": "latest"
+    "@theia/ext-scripts": "^0.15.0"
+  },
+  "nyc": {
+    "extends": "../../configs/nyc.json"
   },
   "publishConfig": {
     "access": "public"
   },
   "license": "AGPL-3.0-only",
   "scripts": {
-    "prepare": "yarn run clean && yarn run build",
-    "clean": "rimraf lib",
-    "build": "tsc",
-    "watch": "tsc -w"
+    "lint": "theiaext lint",
+    "build": "theiaext build",
+    "watch": "theiaext watch",
+    "clean": "theiaext clean",
+    "test": "theiaext test"
   },
   "theiaExtensions": [
     {

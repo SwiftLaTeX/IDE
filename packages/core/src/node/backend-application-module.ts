@@ -17,16 +17,16 @@
 import { ContainerModule, decorate, injectable } from 'inversify';
 import { ApplicationPackage } from '@theia/application-package';
 import {
-    bindContributionProvider, MessageService, MessageClient, ConnectionHandler, JsonRpcConnectionHandler,
+    bindContributionProvider, MessageService, MessageClient, /* ConnectionHandler, JsonRpcConnectionHandler, */
     CommandService, commandServicePath, messageServicePath
 } from '../common';
 import { BackendApplication, BackendApplicationContribution, BackendApplicationCliContribution } from './backend-application';
 import { CliManager, CliContribution } from './cli';
 import { IPCConnectionProvider } from './messaging';
-import { ApplicationServerImpl } from './application-server';
-import { ApplicationServer, applicationPath } from '../common/application-protocol';
-import { EnvVariablesServer, envVariablesPath } from './../common/env-variables';
-import { EnvVariablesServerImpl } from './env-variables';
+// import { ApplicationServerImpl } from './application-server';
+// import { ApplicationServer, applicationPath } from '../common/application-protocol';
+// import { EnvVariablesServer, envVariablesPath } from './../common/env-variables';
+// import { EnvVariablesServerImpl } from './env-variables';
 import { ConnectionContainerModule } from './messaging/connection-container-module';
 import { QuickPickService, quickPickServicePath } from '../common/quick-pick-service';
 
@@ -61,21 +61,21 @@ export const backendApplicationModule = new ContainerModule(bind => {
 
     bind(IPCConnectionProvider).toSelf().inSingletonScope();
 
-    bind(ApplicationServerImpl).toSelf().inSingletonScope();
-    bind(ApplicationServer).toService(ApplicationServerImpl);
-    bind(ConnectionHandler).toDynamicValue(ctx =>
-        new JsonRpcConnectionHandler(applicationPath, () =>
-            ctx.container.get(ApplicationServer)
-        )
-    ).inSingletonScope();
+    // bind(ApplicationServerImpl).toSelf().inSingletonScope();
+    // bind(ApplicationServer).toService(ApplicationServerImpl);
+    // bind(ConnectionHandler).toDynamicValue(ctx =>
+    //     new JsonRpcConnectionHandler(applicationPath, () =>
+    //         ctx.container.get(ApplicationServer)
+    //     )
+    // ).inSingletonScope();
 
-    bind(EnvVariablesServer).to(EnvVariablesServerImpl).inSingletonScope();
-    bind(ConnectionHandler).toDynamicValue(ctx =>
-        new JsonRpcConnectionHandler(envVariablesPath, () => {
-            const envVariablesServer = ctx.container.get<EnvVariablesServer>(EnvVariablesServer);
-            return envVariablesServer;
-        })
-    ).inSingletonScope();
+    // bind(EnvVariablesServer).to(EnvVariablesServerImpl).inSingletonScope();
+    // bind(ConnectionHandler).toDynamicValue(ctx =>
+    //     new JsonRpcConnectionHandler(envVariablesPath, () => {
+    //         const envVariablesServer = ctx.container.get<EnvVariablesServer>(EnvVariablesServer);
+    //         return envVariablesServer;
+    //     })
+    // ).inSingletonScope();
 
     bind(ApplicationPackage).toDynamicValue(({ container }) => {
         const { projectPath } = container.get(BackendApplicationCliContribution);

@@ -159,6 +159,9 @@
     },
     {
       "path": "../examples/electron/compile.tsconfig.json"
+    },
+    {
+      "path": "../examples/browser/compile.tsconfig.json"
     }
   ]
 }

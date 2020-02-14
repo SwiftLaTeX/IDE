@@ -183,6 +183,12 @@
       ],
       "@theia/example-electron/*": [
         "examples/electron/*"
+      ],
+      "@theia/latex/*": [
+        "packages/latex/*"
+      ],
+      "@theia/swiftlatex/*": [
+        "examples/browser/*"
       ]
     }
   }
