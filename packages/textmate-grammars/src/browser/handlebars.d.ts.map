@@ -1,0 +1,1 @@
+{"version":3,"file":"handlebars.d.ts","sourceRoot":"","sources":["handlebars.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAElF,OAAO,EAAE,qCAAqC,EAAE,gBAAgB,EAAqB,MAAM,oCAAoC,CAAC;AAGhI,qBACa,sBAAuB,YAAW,qCAAqC;IAEhF,QAAQ,CAAC,EAAE,gBAAgB;IAC3B,QAAQ,CAAC,SAAS,0BAA0B;IAE5C,wBAAwB,CAAC,QAAQ,EAAE,gBAAgB,GAAG,IAAI;CA0C7D"}

@@ -92,7 +92,7 @@ export class LaTeXEngine {
 				const result: string = <string>data['result'];
 				const log: string = <string>data['log'];
 				const status: number = <number>data['status'];
-				const pdf: Uint8Array = <Uint8Array>data['pdf'];
+				const pdf: Uint8Array = new Uint8Array(data['pdf']);
 				if (cmd === 'compile') {
 					this.latexWorkerStatus = EngineStatus.Ready;
 					if (result === 'failed') {

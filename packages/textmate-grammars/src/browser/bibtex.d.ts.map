@@ -1,0 +1,1 @@
+{"version":3,"file":"bibtex.d.ts","sourceRoot":"","sources":["bibtex.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;;AAElF,OAAO,EAAE,qCAAqC,EAAE,gBAAgB,EAAqB,MAAM,oCAAoC,CAAC;AAGhI,qBACa,kBAAmB,YAAW,qCAAqC;IAC5E,QAAQ,CAAC,kBAAkB,YAAY;IAEvC,QAAQ,CAAC,MAAM,EAAE,MAAM,CAAC,SAAS,CAAC,qBAAqB,CAyBrD;IAEF,wBAAwB,CAAC,QAAQ,EAAE,gBAAgB,GAAG,IAAI;CA6B7D"}

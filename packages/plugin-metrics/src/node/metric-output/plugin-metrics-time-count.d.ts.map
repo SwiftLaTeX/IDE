@@ -1,0 +1,1 @@
+{"version":3,"file":"plugin-metrics-time-count.d.ts","sourceRoot":"","sources":["plugin-metrics-time-count.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAElF,OAAO,EAAE,YAAY,EAAE,qBAAqB,EAAE,MAAM,mCAAmC,CAAC;AAGxF,qBACa,qBAAsB,YAAW,YAAY;IAE/C,MAAM,SAAqH;IAElI,kBAAkB,CAAC,EAAE,EAAE,MAAM,EAAE,MAAM,EAAE,MAAM,EAAE,gBAAgB,EAAE,qBAAqB,GAAG,MAAM;CAWlG"}

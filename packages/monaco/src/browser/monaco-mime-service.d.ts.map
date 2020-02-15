@@ -1,0 +1,1 @@
+{"version":3,"file":"monaco-mime-service.d.ts","sourceRoot":"","sources":["monaco-mime-service.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAElF,OAAO,EAAE,eAAe,EAAE,WAAW,EAAE,MAAM,sCAAsC,CAAC;AAGpF,qBACa,iBAAkB,SAAQ,WAAW;IAE9C,eAAe,CAAC,YAAY,EAAE,eAAe,EAAE,GAAG,IAAI;IAStD,SAAS,CAAC,cAAc,CAAC,MAAM,EAAE,MAAM,GAAG,MAAM,GAAG,SAAS;CAS/D"}

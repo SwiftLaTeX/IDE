@@ -1,0 +1,1 @@
+{"version":3,"file":"launch-folder-preference-provider.d.ts","sourceRoot":"","sources":["launch-folder-preference-provider.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAGlF,OAAO,EAAE,wBAAwB,EAAE,MAAM,2DAA2D,CAAC;AAErG,qBACa,8BAA+B,SAAQ,wBAAwB;IAGxE,SAAS,CAAC,KAAK,CAAC,OAAO,EAAE,MAAM,GAAG,GAAG;IAQrC,SAAS,CAAC,OAAO,CAAC,cAAc,EAAE,MAAM,GAAG,MAAM,EAAE,GAAG,SAAS;CAUlE"}

@@ -1,0 +1,30 @@
+/********************************************************************************
+ * Copyright (C) 2017 TypeFox and others.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0.
+ *
+ * This Source Code may also be made available under the following Secondary
+ * Licenses when the conditions for such availability set forth in the Eclipse
+ * Public License v. 2.0 are satisfied: GNU General Public License, version 2
+ * with the GNU Classpath Exception which is available at
+ * https://www.gnu.org/software/classpath/license.html.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
+ ********************************************************************************/
+import { QuickOpenService } from '@theia/core/lib/browser/quick-open/quick-open-service';
+import { MessageService } from '@theia/core/lib/common/message-service';
+import { FileSystem } from '@theia/filesystem/lib/common';
+import { ScmService } from './scm-service';
+export declare class ScmQuickOpenService {
+    protected readonly quickOpenService: QuickOpenService;
+    protected readonly messageService: MessageService;
+    protected readonly fileSystem: FileSystem;
+    protected readonly scmService: ScmService;
+    changeRepository(): Promise<void>;
+    private open;
+    private getModel;
+    private getOptions;
+}
+//# sourceMappingURL=scm-quick-open-service.d.ts.map

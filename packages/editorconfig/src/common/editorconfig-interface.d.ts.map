@@ -1,0 +1,1 @@
+{"version":3,"file":"editorconfig-interface.d.ts","sourceRoot":"","sources":["editorconfig-interface.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAElF,OAAO,EAAE,UAAU,EAAE,MAAM,cAAc,CAAC;AAE1C,eAAO,MAAM,uBAAuB,2BAA2B,CAAC;AAEhE,eAAO,MAAM,mBAAmB,eAAgC,CAAC;AACjE,MAAM,WAAW,mBAAmB;IAEhC;;OAEG;IACH,SAAS,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,CAAC,UAAU,CAAC,CAAC;CAE/C"}

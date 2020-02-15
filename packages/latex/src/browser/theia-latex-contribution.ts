@@ -23,6 +23,7 @@ import { S3StorageSystem } from '@theia/filesystem/lib/browser/s3storagesystem';
 import { getDocument } from 'pdfjs-dist';
 import { MonacoWorkspace, MonacoDidChangeTextDocumentParams } from '@theia/monaco/lib/browser/monaco-workspace';
 import { MonacoEditorModel } from '@theia/monaco/lib/browser/monaco-editor-model';
+import { MonacoYJSBinding } from './monaco-yjs';
 
 export namespace LaTeXMenus {
     export const LATEX = [...MAIN_MENU_BAR, '7_latex'];
@@ -96,6 +97,8 @@ export class LaTeXCommandContribution implements CommandContribution {
     private cachedXDV: Uint8Array | undefined = undefined;
     private hasFileSyncedToEngine: boolean = false;
     protected readonly toDispose = new DisposableCollection();
+    private readonly opened_handles: Map<string, number> = new Map<string, number>();
+    private mainFile: string | undefined = undefined;
 
     constructor(
         @inject(S3StorageSystem) private readonly s3filesystem: S3StorageSystem,
@@ -104,7 +107,6 @@ export class LaTeXCommandContribution implements CommandContribution {
         @inject(XDVExporter) private readonly xdvExporter: XDVExporter,
         @inject(MonacoWorkspace) private readonly workspace: MonacoWorkspace,
     ) {
-
         this.toDispose.push(this.workspace.onDidOpenTextDocument(model => this.fireDidOpenDocument(model)));
         this.toDispose.push(this.workspace.onDidChangeTextDocument(param => this.fireDidChangeContents(param)));
         this.toDispose.push(this.workspace.onDidCloseTextDocument(model => this.fireDidCloseDocument(model)));
@@ -137,11 +139,33 @@ export class LaTeXCommandContribution implements CommandContribution {
         if (!this.latexEngine.isReady()) {
             return;
         }
+
+        const mainTempFiles = await this.resolveMainFile();
+        if (mainTempFiles.length === 0) {
+            this.messageService.error('Cannot locate the main LaTeX entry file. Please create a main entry file before compilation', { timeout: 3000 });
+            return;
+        }
+
+        if (mainTempFiles.length > 1) {
+            this.messageService.error(`Compiler cannot tell which file is the main entry file, either ${mainTempFiles[0]} or ${mainTempFiles[1]}`, { timeout: 3000 });
+            return;
+        }
+
         if (!this.hasFileSyncedToEngine) {
             this.hasFileSyncedToEngine = true;
             await this._syncFileToEngine('/');
         }
+
         this.messageService.info('Building. If citation is important to you, please use Full Compile.', { timeout: 3000 });
+        this.latexEngine.setEngineMainFile(mainTempFiles[0]);
+        const compileResult = await this.latexEngine.compileLaTeX();
+        if (compileResult.status === 1 || compileResult.status === 0) {
+            /* Successful compilation */
+            this.cachedXDV = compileResult.pdf;
+            console.log('Compiled successfully');
+        }
+        /* Write log to output and parse log */
+
     }
 
     private async _syncFileToEngine(url: string): Promise<void> {
@@ -149,7 +173,7 @@ export class LaTeXCommandContribution implements CommandContribution {
         for (let j = 0; j < objs.length; j++) {
             const obj = objs[j];
             if (obj.isDir) {
-                if (obj.uri.includes('.swiftlatex')) {
+                if (obj.uri.includes('.swiftlatex') || obj.uri.includes('.theia')) {
                     continue;
                 }
                 this.latexEngine.makeMemFSFolder(obj.uri);
@@ -227,9 +251,18 @@ export class LaTeXCommandContribution implements CommandContribution {
     }
 
     protected async exportPDF(): Promise<void> {
+        if (!this.cachedXDV) {
+            return;
+        }
         this.messageService.info('Exporting PDF...', { timeout: 3000 });
-        this.xdvExporter.closeWorker();
         await this.xdvExporter.loadExporter();
+        await this._syncFileToExporter('/');
+        this.xdvExporter.writeMainXDVFile(this.cachedXDV);
+        const res = await this.xdvExporter.exportPDF();
+        if (res.status === 1 || res.status === 0) {
+            console.log('Convert successfully');
+        }
+        this.xdvExporter.closeWorker();
     }
 
     protected async restartEngine(): Promise<void> {
@@ -240,24 +273,97 @@ export class LaTeXCommandContribution implements CommandContribution {
     }
 
     protected fireDidChangeContents(param: MonacoDidChangeTextDocumentParams): void {
-        console.log('change');
+        if (this.shouldIgnore(param.textDocument)) {
+            return;
+        }
+        if (this.latexEngine.isReady()) {
+            const save_uri = param.textDocument.uri.substr(7);
+            this.latexEngine.writeMemFSFile(param.textDocument.getText(), save_uri);
+            /* Please fire up a new compilation */
+        }
     }
 
     protected fireDidOpenDocument(model: MonacoEditorModel): void {
-        if (!model || !model.valid) {
+        if (this.shouldIgnore(model)) {
             return;
         }
-        if (!model.uri.startsWith('file:///')) {
+        /* Kick off YJS */
+        if (this.opened_handles.has(model.uri)) {
             return;
         }
-        if (model.uri.startsWith('file:///.theia') || model.uri.startsWith('file:///.vscode')) {
-            
-        }
-
+        new MonacoYJSBinding(model);
     }
 
     protected fireDidCloseDocument(model: MonacoEditorModel): void {
-        console.log('close');
-        console.log(model.uri);
+        if (this.shouldIgnore(model)) {
+            return;
+        }
+        if (this.opened_handles.has(model.uri)) {
+            this.opened_handles.delete(model.uri);
+        }
+    }
+
+    private shouldIgnore(model: MonacoEditorModel): boolean {
+        if (!model || !model.valid) {
+            return true;
+        }
+        if (!model.uri.startsWith('file:///')) {
+            return true;
+        }
+        if (model.uri.startsWith('file:///.theia') ||
+            model.uri.startsWith('file:///.vscode') ||
+            model.uri.startsWith('file:///.swiftlatex')) {
+            return true;
+        }
+        return false;
+    }
+
+    private async resolveMainFile(): Promise<string[]> {
+        /* has resolved before */
+        if (this.mainFile) {
+            return [this.mainFile];
+        }
+
+        const objs = await this.s3filesystem.readdir('/');
+
+        /* Try previous saved mainfile */
+        const saved_mainfile = window.localStorage.getItem(window.location.pathname + 'main_config');
+        if (!saved_mainfile) {
+            /* We should verify it */
+            for (let j = 0; j < objs.length; j++) {
+                if (!objs[j].isDir && objs[j].uri === saved_mainfile) {
+                    /* Solved */
+                    this.mainFile = saved_mainfile!;
+                    return [this.mainFile];
+                }
+            }
+        }
+
+        const possibleCandicates: string[] = [];
+        /* See whether there is only one .tex file */
+        for (let k = 0; k < objs.length; k++) {
+            if (!objs[k].isDir && objs[k].uri.endsWith('.tex')) {
+                possibleCandicates.push(objs[k].uri);
+            }
+        }
+        return possibleCandicates;
+    }
+
+    private async _syncFileToExporter(url: string): Promise<void> {
+        const objs = await this.s3filesystem.readdir(url);
+        for (let j = 0; j < objs.length; j++) {
+            const obj = objs[j];
+            if (obj.isDir) {
+                if (obj.uri.includes('.swiftlatex') || obj.uri.includes('.theia')) {
+                    continue;
+                }
+                this.latexEngine.makeMemFSFolder(obj.uri);
+                await this._syncFileToExporter(obj.uri);
+            } else {
+                const content: Uint8Array = await this.s3filesystem.readFile(obj.uri);
+                this.latexEngine.writeMemFSFile(content, obj.uri);
+                console.log('Writing file to exporter ' + obj.uri);
+            }
+        }
     }
 }

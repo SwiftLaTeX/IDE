@@ -1,0 +1,1 @@
+{"version":3,"file":"monaco-keybinding.d.ts","sourceRoot":"","sources":["monaco-keybinding.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAGlF,OAAO,EAAE,sBAAsB,EAAE,kBAAkB,EAAE,MAAM,yBAAyB,CAAC;AAGrF,OAAO,EAAE,qBAAqB,EAAE,MAAM,2BAA2B,CAAC;AAIlE,qBACa,4BAA6B,YAAW,sBAAsB;IAGvE,SAAS,CAAC,QAAQ,CAAC,QAAQ,EAAE,qBAAqB,CAAC;IAEnD,mBAAmB,CAAC,QAAQ,EAAE,kBAAkB,GAAG,IAAI;CA6B1D"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"problem-marker.js","sourceRoot":"","sources":["problem-marker.ts"],"names":[],"mappings":";AAAA;;;;;;;;;;;;;;kFAckF;;AAKrE,QAAA,YAAY,GAAG,SAAS,CAAC;AAMtC,IAAiB,aAAa,CAI7B;AAJD,WAAiB,aAAa;IAC1B,SAAgB,EAAE,CAAC,IAAoB;QACnC,OAAO,MAAM,IAAI,IAAI,IAAI,IAAI,CAAC,IAAI,KAAK,oBAAY,CAAC;IACxD,CAAC;IAFe,gBAAE,KAEjB,CAAA;AACL,CAAC,EAJgB,aAAa,GAAb,qBAAa,KAAb,qBAAa,QAI7B"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"python-backend-module.js","sourceRoot":"","sources":["python-backend-module.ts"],"names":[],"mappings":";AAAA;;;;;;;;;;;;;;kFAckF;;AAElF,uCAA4C;AAC5C,kDAAuE;AACvE,6DAA2D;AAE3D,kBAAe,IAAI,2BAAe,CAAC,UAAA,IAAI;IACnC,IAAI,CAAC,wCAAkB,CAAC,CAAC,MAAM,EAAE,CAAC,gBAAgB,EAAE,CAAC;IACrD,IAAI,CAAC,iCAA0B,CAAC,CAAC,SAAS,CAAC,wCAAkB,CAAC,CAAC;AACnE,CAAC,CAAC,CAAC"}

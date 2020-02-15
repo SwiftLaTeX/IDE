@@ -1,0 +1,1 @@
+{"version":3,"file":"task-folder-preference-provider.d.ts","sourceRoot":"","sources":["task-folder-preference-provider.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAGlF,OAAO,EAAE,wBAAwB,EAAE,MAAM,2DAA2D,CAAC;AAErG,qBACa,4BAA6B,SAAQ,wBAAwB;IAGtE,SAAS,CAAC,KAAK,CAAC,OAAO,EAAE,MAAM,GAAG,GAAG;IAQrC,SAAS,CAAC,OAAO,CAAC,cAAc,EAAE,MAAM,GAAG,MAAM,EAAE,GAAG,SAAS;CAUlE"}

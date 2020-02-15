@@ -111,6 +111,9 @@ export class XDVExporter {
 		}
 	}
 
+	public writeMainXDVFile(srccode: Uint8Array): void {
+		this.writeMemFSFile(srccode, 'InP0t_SwIfTLoTEx_.xdv');
+	}
 
 	public makeMemFSFolder(folder: string): void {
 		this.checkExporterStatus();
