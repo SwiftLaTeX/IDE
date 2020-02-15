@@ -17,9 +17,7 @@
     "monaco-css": "^2.5.0",
     "monaco-html": "^2.5.2",
     "onigasm": "2.2.1",
-    "vscode-textmate": "^4.0.1",
-    "y-websocket": "^1.2.1",
-    "yjs": "^13.0.2"
+    "vscode-textmate": "^4.0.1"
   },
   "publishConfig": {
     "access": "public"

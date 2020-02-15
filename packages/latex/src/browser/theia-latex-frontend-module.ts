@@ -15,7 +15,7 @@
  ********************************************************************************/
 
 
-import { LaTeXClientContribution } from './theia-latex-contribution';
+import { LaTeXClientContribution } from './theia-latex-spellchecker';
 import { LanguageClientContribution } from '@theia/languages/lib/browser';
 import { ContainerModule } from 'inversify';
 import { LaTeXCommandContribution, LaTeXMenuContribution } from './theia-latex-contribution';

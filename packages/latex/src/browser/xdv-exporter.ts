@@ -38,7 +38,7 @@ export class XDVExporter {
 	constructor() {
 	}
 
-	public async loadEngine(): Promise<void> {
+	public async loadExporter(): Promise<void> {
 		if (this.xdvWorker !== undefined) {
 			throw new Error('Other instance is running, abort()');
 		}

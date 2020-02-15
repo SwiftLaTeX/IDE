@@ -36,7 +36,7 @@ export class PreferenceConfigurations {
 
     /* prefer Theia over VS Code by default */
     getPaths(): string[] {
-        return ['.theia', '.vscode'];
+        return ['.theia'];
     }
 
     getConfigName(): string {
