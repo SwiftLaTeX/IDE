@@ -24,7 +24,7 @@ import { MessageService } from '@theia/core/lib/common/message-service';
 import { Progress } from '@theia/core/lib/common/message-service-protocol';
 // import { Endpoint } from '@theia/core/lib/browser/endpoint';
 import { S3StorageSystem } from './s3storagesystem';
-import * as path from 'path';
+import { FileUriLite } from './filesystem-browserfs';
 import throttle = require('lodash.throttle');
 
 const MAXFILESIZE = 2048 * 1023;
@@ -202,9 +202,10 @@ export class FileUploadService {
                             fr.readAsArrayBuffer(file);
                         });
                         // console.log('ensuring ' + polyDirname(dstPath));
-                        await this.s3fs.ensureDirExist(path.dirname(dstPath));
+                        const _dstUri = new URI(dstPath);
+                        await this.s3fs.ensureDirExist(FileUriLite.fsPath(_dstUri.parent));
                         // console.log('writing ' + content);
-                        await this.s3fs.writeFile(dstPath, new Uint8Array(<ArrayBuffer>content));
+                        await this.s3fs.writeFile(FileUriLite.fsPath(_dstUri), new Uint8Array(<ArrayBuffer>content));
                         // await new Promise(resolve => setTimeout(resolve, 3000));
                         done += file.size;
                         doneFiles++;

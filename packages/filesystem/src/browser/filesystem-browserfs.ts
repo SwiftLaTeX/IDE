@@ -40,7 +40,7 @@ export class FileSystemBrowserOptions {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-namespace FileUriLite {
+export namespace FileUriLite {
     export function create(fsPath_: string): URI {
         return new URI(Uri.file(fsPath_));
     }
