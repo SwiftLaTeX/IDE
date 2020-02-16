@@ -14,8 +14,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-import { MonacoEditorModel } from './monaco-editor-model';
-import URI from '@theia/core/lib/common/uri';
+import { MonacoEditorModel } from '@theia/monaco/lib/browser/monaco-editor-model';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -45,6 +44,7 @@ export class MonacoYJSBinding {
 	}
 
 	init_yjs(monacoModel: monaco.editor.IModel): void {
+		console.log('Opening url ' + monacoModel.uri.toString());
 		const ydoc = new Y.Doc();
 		const unique_id = (window.location.pathname + monacoModel.uri.toString()).replace(/\//gm, '_').replace(':', '_').replace(/\./gm, '_');
 		const provider = new WebsocketProvider('wss://share.swiftlatex.com', unique_id, ydoc);
