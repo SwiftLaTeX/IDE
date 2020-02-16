@@ -26,6 +26,7 @@ import { MonacoEditorModel } from '@theia/monaco/lib/browser/monaco-editor-model
 import { MonacoYJSBinding } from './monaco-yjs';
 import { OutputChannelManager, OutputChannel } from '@theia/output/lib/common/output-channel';
 import { ProblemManager } from '@theia/markers/lib/browser/problem/problem-manager';
+import * as LaTeXLogParser from './latex-log-parser';
 
 export namespace LaTeXMenus {
     export const LATEX = [...MAIN_MENU_BAR, '7_latex'];
@@ -115,6 +116,7 @@ export class LaTeXCommandContribution implements CommandContribution {
         this.toDispose.push(this.workspace.onDidChangeTextDocument(param => this.fireDidChangeContents(param)));
         this.toDispose.push(this.workspace.onDidCloseTextDocument(model => this.fireDidCloseDocument(model)));
         this.output_channel = this.outputChannelManager.getChannel('LaTeX');
+        console.log(LaTeXLogParser);
     }
 
     registerCommands(registry: CommandRegistry): void {
@@ -270,6 +272,7 @@ export class LaTeXCommandContribution implements CommandContribution {
         await this._syncFileToExporter('/');
         this.xdvExporter.writeMainXDVFile(this.cachedXDV);
         const res = await this.xdvExporter.exportPDF();
+        this.xdvExporter.closeWorker();
         this.output_channel.clear();
         this.output_channel.append(res.log);
         if (res.status === 1 || res.status === 0) {
