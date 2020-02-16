@@ -1,1 +1,0 @@
-{"version":3,"file":"plugin-metrics-time-sum.d.ts","sourceRoot":"","sources":["plugin-metrics-time-sum.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAElF,OAAO,EAAE,YAAY,EAAE,qBAAqB,EAAE,MAAM,mCAAmC,CAAC;AAGxF,qBACa,mBAAoB,YAAW,YAAY;IAE7C,MAAM,SAA6I;IAE1J,kBAAkB,CAAC,EAAE,EAAE,MAAM,EAAE,MAAM,EAAE,MAAM,EAAE,gBAAgB,EAAE,qBAAqB,GAAG,MAAM;CAUlG"}

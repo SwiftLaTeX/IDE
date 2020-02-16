@@ -1,1 +1,0 @@
-{"version":3,"file":"go.d.ts","sourceRoot":"","sources":["go.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;;AAElF,OAAO,EAAE,qCAAqC,EAAE,gBAAgB,EAAqB,MAAM,oCAAoC,CAAC;AAGhI,qBACa,cAAe,YAAW,qCAAqC;IACxE,QAAQ,CAAC,EAAE,QAAQ;IACnB,QAAQ,CAAC,MAAM,EAAE,MAAM,CAAC,SAAS,CAAC,qBAAqB,CA8BrD;IAEF,wBAAwB,CAAC,QAAQ,EAAE,gBAAgB,GAAG,IAAI;CAoB7D"}

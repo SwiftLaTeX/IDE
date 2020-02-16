@@ -1,1 +1,0 @@
-{"version":3,"file":"rust.d.ts","sourceRoot":"","sources":["rust.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;;AAOlF,OAAO,EAAE,qCAAqC,EAAE,gBAAgB,EAAqB,MAAM,oCAAoC,CAAC;AAEhI,qBACa,gBAAiB,YAAW,qCAAqC;IAC1E,QAAQ,CAAC,EAAE,UAAU;IAErB,QAAQ,CAAC,MAAM,EAAE,MAAM,CAAC,SAAS,CAAC,qBAAqB,CA6BrD;IAEF,wBAAwB,CAAC,QAAQ,EAAE,gBAAgB,GAAG,IAAI;CAsB7D"}

@@ -1,1 +1,0 @@
-{"version":3,"file":"scanner-theia-electron.d.ts","sourceRoot":"","sources":["scanner-theia-electron.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAElF,OAAO,EAAE,kBAAkB,EAAE,MAAM,gCAAgC,CAAC;AAEpE,OAAO,EAAE,aAAa,EAAE,WAAW,EAAE,MAAM,8BAA8B,CAAC;AAC1E,qBACa,0BAA2B,SAAQ,kBAAkB;IAC9D,QAAQ,CAAC,MAAM,EAAE,aAAa,GAAG,WAAW;CAO/C"}

@@ -1,1 +1,0 @@
-{"version":3,"file":"mini-browser-dummy-server.d.ts","sourceRoot":"","sources":["mini-browser-dummy-server.ts"],"names":[],"mappings":"AAiBA,OAAO,EAAE,kBAAkB,EAAE,MAAM,gCAAgC,CAAC;AAIpE,qBACa,sBAAuB,YAAW,kBAAkB;IACvD,uBAAuB,IAAI,OAAO,CAAC,QAAQ,CAAC;QAAE,SAAS,EAAE,MAAM,CAAC;QAAC,QAAQ,EAAE,MAAM,CAAA;KAAE,CAAC,EAAE,CAAC;CAahG"}

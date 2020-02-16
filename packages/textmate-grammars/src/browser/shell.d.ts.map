@@ -1,1 +1,0 @@
-{"version":3,"file":"shell.d.ts","sourceRoot":"","sources":["shell.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAElF,OAAO,EAAE,qCAAqC,EAAE,gBAAgB,EAAqB,MAAM,oCAAoC,CAAC;AAGhI,qBACa,iBAAkB,YAAW,qCAAqC;IAE3E,QAAQ,CAAC,EAAE,WAAW;IACtB,QAAQ,CAAC,SAAS,kBAAkB;IAEpC,wBAAwB,CAAC,QAAQ,EAAE,gBAAgB,GAAG,IAAI;CAwC7D"}

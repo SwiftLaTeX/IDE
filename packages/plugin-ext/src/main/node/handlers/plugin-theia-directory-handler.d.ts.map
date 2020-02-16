@@ -1,1 +1,0 @@
-{"version":3,"file":"plugin-theia-directory-handler.d.ts","sourceRoot":"","sources":["plugin-theia-directory-handler.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAElF,OAAO,EACH,8BAA8B,EAC9B,mBAAmB,EAAiB,qCAAqC,EAE5E,MAAM,iCAAiC,CAAC;AAKzC,qBACa,2BAA4B,YAAW,8BAA8B;IAE9E,MAAM,CAAC,cAAc,EAAE,mBAAmB,GAAG,OAAO;IAmCpD,MAAM,CAAC,OAAO,EAAE,qCAAqC,GAAG,OAAO,CAAC,GAAG,CAAC;CAavE"}

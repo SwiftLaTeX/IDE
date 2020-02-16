@@ -1,1 +1,0 @@
-{"version":3,"file":"mock-directory-archiver.d.ts","sourceRoot":"","sources":["mock-directory-archiver.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAElF,OAAO,EAAE,iBAAiB,EAAE,MAAM,uBAAuB,CAAC;AAC1D,OAAO,GAAG,MAAM,4BAA4B,CAAC;AAE7C,qBAAa,qBAAsB,SAAQ,iBAAiB;IAE5C,OAAO,CAAC,OAAO,CAAC;gBAAR,OAAO,CAAC,mBAAO;cAInB,KAAK,CAAC,GAAG,EAAE,GAAG,GAAG,OAAO,CAAC,OAAO,CAAC;CAIpD"}

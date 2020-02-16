@@ -1,1 +1,0 @@
-{"version":3,"file":"terminal-linkmatcher-diff.d.ts","sourceRoot":"","sources":["terminal-linkmatcher-diff.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAGlF,OAAO,EAAE,wBAAwB,EAAE,MAAM,8BAA8B,CAAC;AAExE,qBACa,0BAA2B,SAAQ,wBAAwB;IAC9D,SAAS,IAAI,OAAO,CAAC,MAAM,CAAC;CAGrC;AAED,qBACa,2BAA4B,SAAQ,wBAAwB;IAC/D,SAAS,IAAI,OAAO,CAAC,MAAM,CAAC;CAGrC"}

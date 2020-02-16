@@ -1,1 +1,0 @@
-{"version":3,"file":"plugin-service.d.ts","sourceRoot":"","sources":["plugin-service.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAMlF,OAAO,KAAK,OAAO,MAAM,SAAS,CAAC;AACnC,OAAO,EAAE,8BAA8B,EAAE,MAAM,0CAA0C,CAAC;AAM1F,qBACa,qBAAsB,YAAW,8BAA8B;IAExE,SAAS,CAAC,GAAG,EAAE,OAAO,CAAC,WAAW,GAAG,IAAI;IAazC,SAAS,CAAC,uBAAuB,IAAI,MAAM;CAK9C"}

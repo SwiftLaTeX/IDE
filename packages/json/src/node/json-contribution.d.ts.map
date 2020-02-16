@@ -1,1 +1,0 @@
-{"version":3,"file":"json-contribution.d.ts","sourceRoot":"","sources":["json-contribution.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAGlF,OAAO,EAAE,8BAA8B,EAAE,WAAW,EAAE,MAAM,2BAA2B,CAAC;AAKxF,qBACa,gBAAiB,SAAQ,8BAA8B;IAEhE,QAAQ,CAAC,EAAE,UAAoB;IAC/B,QAAQ,CAAC,IAAI,UAAsB;IAE7B,KAAK,CAAC,gBAAgB,EAAE,WAAW,GAAG,OAAO,CAAC,IAAI,CAAC;CAW5D"}

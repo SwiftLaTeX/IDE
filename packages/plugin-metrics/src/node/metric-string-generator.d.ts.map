@@ -1,1 +1,0 @@
-{"version":3,"file":"metric-string-generator.d.ts","sourceRoot":"","sources":["metric-string-generator.ts"],"names":[],"mappings":"AAiBA,OAAO,EAAE,UAAU,EAAE,MAAM,gCAAgC,CAAC;AAG5D,qBACa,2BAA2B;IAGpC,OAAO,CAAC,sBAAsB,CAAwB;IAGtD,OAAO,CAAC,oBAAoB,CAAsB;IAElD,gBAAgB,CAAC,oBAAoB,EAAE,UAAU,GAAG,MAAM;CAwC7D"}

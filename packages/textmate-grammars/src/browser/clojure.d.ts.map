@@ -1,1 +1,0 @@
-{"version":3,"file":"clojure.d.ts","sourceRoot":"","sources":["clojure.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAElF,OAAO,EAAE,qCAAqC,EAAE,gBAAgB,EAAqB,MAAM,oCAAoC,CAAC;AAGhI,qBACa,mBAAoB,YAAW,qCAAqC;IAE7E,QAAQ,CAAC,EAAE,aAAa;IACxB,QAAQ,CAAC,SAAS,oBAAoB;IAEtC,wBAAwB,CAAC,QAAQ,EAAE,gBAAgB,GAAG,IAAI;CA0C7D"}

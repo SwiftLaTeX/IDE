@@ -1,1 +1,0 @@
-{"version":3,"file":"worker-env-ext.d.ts","sourceRoot":"","sources":["worker-env-ext.ts"],"names":[],"mappings":"AAAA;;;;;;;;;;;;;;kFAckF;AAElF,OAAO,EAAE,UAAU,EAAE,MAAM,qBAAqB,CAAC;AACjD,OAAO,EAAE,WAAW,EAAE,MAAM,8BAA8B,CAAC;AAE3D;;;GAGG;AACH,qBAAa,gBAAiB,SAAQ,UAAU;gBAEhC,GAAG,EAAE,WAAW;IAI5B;;OAEG;IACH,IAAI,OAAO,IAAI,MAAM,CAEpB;CAEJ"}

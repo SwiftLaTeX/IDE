@@ -24,6 +24,8 @@ import { getDocument } from 'pdfjs-dist';
 import { MonacoWorkspace, MonacoDidChangeTextDocumentParams } from '@theia/monaco/lib/browser/monaco-workspace';
 import { MonacoEditorModel } from '@theia/monaco/lib/browser/monaco-editor-model';
 import { MonacoYJSBinding } from './monaco-yjs';
+import { OutputChannelManager, OutputChannel } from '@theia/output/lib/common/output-channel';
+import { ProblemManager } from '@theia/markers/lib/browser/problem/problem-manager';
 
 export namespace LaTeXMenus {
     export const LATEX = [...MAIN_MENU_BAR, '7_latex'];
@@ -37,14 +39,14 @@ export namespace LaTeXMenus {
 export namespace LaTeXCommands {
     const LATEX_CATEGORY = 'LaTeX';
     export const BUILD_QUICK: Command = {
-        id: 'latex:build',
-        category: LATEX_CATEGORY,
-        label: 'Swift Compile'
-    };
-    export const BUILD_LINK: Command = {
         id: 'latex:quickbuild',
         category: LATEX_CATEGORY,
-        label: 'Full Compile'
+        label: 'Preview'
+    };
+    export const BUILD_LINK: Command = {
+        id: 'latex:build',
+        category: LATEX_CATEGORY,
+        label: 'Compile'
     };
     export const PROJECT_EXPORT: Command = {
         id: 'latex:export',
@@ -98,7 +100,7 @@ export class LaTeXCommandContribution implements CommandContribution {
     private hasFileSyncedToEngine: boolean = false;
     protected readonly toDispose = new DisposableCollection();
     private readonly opened_handles: Map<string, number> = new Map<string, number>();
-    private mainFile: string | undefined = undefined;
+    private output_channel: OutputChannel;
 
     constructor(
         @inject(S3StorageSystem) private readonly s3filesystem: S3StorageSystem,
@@ -106,10 +108,13 @@ export class LaTeXCommandContribution implements CommandContribution {
         @inject(LaTeXEngine) private readonly latexEngine: LaTeXEngine,
         @inject(XDVExporter) private readonly xdvExporter: XDVExporter,
         @inject(MonacoWorkspace) private readonly workspace: MonacoWorkspace,
+        @inject(OutputChannelManager) protected readonly outputChannelManager: OutputChannelManager,
+        @inject(ProblemManager) protected readonly problemManager: ProblemManager,
     ) {
         this.toDispose.push(this.workspace.onDidOpenTextDocument(model => this.fireDidOpenDocument(model)));
         this.toDispose.push(this.workspace.onDidChangeTextDocument(param => this.fireDidChangeContents(param)));
         this.toDispose.push(this.workspace.onDidCloseTextDocument(model => this.fireDidCloseDocument(model)));
+        this.output_channel = this.outputChannelManager.getChannel('LaTeX');
     }
 
     registerCommands(registry: CommandRegistry): void {
@@ -156,15 +161,21 @@ export class LaTeXCommandContribution implements CommandContribution {
             await this._syncFileToEngine('/');
         }
 
-        this.messageService.info('Building. If citation is important to you, please use Full Compile.', { timeout: 3000 });
+        this.messageService.info('Building preview', { timeout: 3000 });
         this.latexEngine.setEngineMainFile(mainTempFiles[0]);
         const compileResult = await this.latexEngine.compileLaTeX();
+        /* Write log to output and parse log */
+        this.output_channel.clear();
+        this.output_channel.append(compileResult.log);
         if (compileResult.status === 1 || compileResult.status === 0) {
             /* Successful compilation */
             this.cachedXDV = compileResult.pdf;
-            console.log('Compiled successfully');
+        } else {
+            /* Failure */
+            // const activate = true;
+            // const reveal = true;
+            // await this.outputContribution.openView({ activate, reveal });
         }
-        /* Write log to output and parse log */
 
     }
 
@@ -259,10 +270,30 @@ export class LaTeXCommandContribution implements CommandContribution {
         await this._syncFileToExporter('/');
         this.xdvExporter.writeMainXDVFile(this.cachedXDV);
         const res = await this.xdvExporter.exportPDF();
+        this.output_channel.clear();
+        this.output_channel.append(res.log);
         if (res.status === 1 || res.status === 0) {
-            console.log('Convert successfully');
+            const tempPDFURL = URL.createObjectURL(new Blob([res.pdf!], { type: 'application/octet-stream' }));
+            let anchor: HTMLAnchorElement | undefined = document.createElement('a');
+            try {
+                anchor.href = tempPDFURL;
+                anchor.style.display = 'none';
+                anchor.download = 'export.pdf';
+                document.body.appendChild(anchor);
+                anchor.click();
+            } finally {
+                // make sure anchor is removed from parent
+                if (anchor && anchor.parentNode) {
+                    anchor.parentNode.removeChild(anchor);
+                }
+                URL.revokeObjectURL(tempPDFURL);
+                anchor = undefined;
+            }
+        } else {
+            /* Failed */
+            this.messageService.error('Unexpected error detected when generating PDF.', { timeout: 3000 });
         }
-        this.xdvExporter.closeWorker();
+
     }
 
     protected async restartEngine(): Promise<void> {
@@ -320,24 +351,14 @@ export class LaTeXCommandContribution implements CommandContribution {
 
     private async resolveMainFile(): Promise<string[]> {
         /* has resolved before */
-        if (this.mainFile) {
-            return [this.mainFile];
+        const saved_mainfile = window.localStorage.getItem(window.location.pathname + 'main_config');
+
+        if (saved_mainfile) {
+            return [saved_mainfile];
         }
 
         const objs = await this.s3filesystem.readdir('/');
-
         /* Try previous saved mainfile */
-        const saved_mainfile = window.localStorage.getItem(window.location.pathname + 'main_config');
-        if (!saved_mainfile) {
-            /* We should verify it */
-            for (let j = 0; j < objs.length; j++) {
-                if (!objs[j].isDir && objs[j].uri === saved_mainfile) {
-                    /* Solved */
-                    this.mainFile = saved_mainfile!;
-                    return [this.mainFile];
-                }
-            }
-        }
 
         const possibleCandicates: string[] = [];
         /* See whether there is only one .tex file */
@@ -346,7 +367,25 @@ export class LaTeXCommandContribution implements CommandContribution {
                 possibleCandicates.push(objs[k].uri);
             }
         }
+
+        /* cache it so we dont have to do it again */
+        if (possibleCandicates.length === 1) {
+            window.localStorage.setItem(window.location.pathname + 'main_config', possibleCandicates[0]);
+        }
+
         return possibleCandicates;
+    }
+
+    public setMainFile(uri: string): void {
+        if (!uri) {
+            return;
+        }
+        if (uri.startsWith('file:///')) {
+            uri = uri.substr(7);
+        }
+        if (uri.startsWith('/') && uri.endsWith('.tex')) {
+            window.localStorage.setItem(window.location.pathname + 'main_config', uri);
+        }
     }
 
     private async _syncFileToExporter(url: string): Promise<void> {
@@ -366,4 +405,5 @@ export class LaTeXCommandContribution implements CommandContribution {
             }
         }
     }
+
 }
