@@ -26,7 +26,8 @@ import { MonacoEditorModel } from '@theia/monaco/lib/browser/monaco-editor-model
 import { MonacoYJSBinding } from './monaco-yjs';
 import { OutputChannelManager, OutputChannel } from '@theia/output/lib/common/output-channel';
 import { ProblemManager } from '@theia/markers/lib/browser/problem/problem-manager';
-import * as LaTeXLogParser from './latex-log-parser';
+// import { Diagnostic } from '@theia/languages/lib/browser';
+import { LatexParserModule } from './latex-log-parser';
 
 export namespace LaTeXMenus {
     export const LATEX = [...MAIN_MENU_BAR, '7_latex'];
@@ -116,7 +117,6 @@ export class LaTeXCommandContribution implements CommandContribution {
         this.toDispose.push(this.workspace.onDidChangeTextDocument(param => this.fireDidChangeContents(param)));
         this.toDispose.push(this.workspace.onDidCloseTextDocument(model => this.fireDidCloseDocument(model)));
         this.output_channel = this.outputChannelManager.getChannel('LaTeX');
-        console.log(LaTeXLogParser);
     }
 
     registerCommands(registry: CommandRegistry): void {
@@ -169,6 +169,7 @@ export class LaTeXCommandContribution implements CommandContribution {
         /* Write log to output and parse log */
         this.output_channel.clear();
         this.output_channel.append(compileResult.log);
+        this.processCompileLog(compileResult.log);
         if (compileResult.status === 1 || compileResult.status === 0) {
             /* Successful compilation */
             this.cachedXDV = compileResult.pdf;
@@ -179,6 +180,19 @@ export class LaTeXCommandContribution implements CommandContribution {
             // await this.outputContribution.openView({ activate, reveal });
         }
 
+    }
+
+    private processCompileLog(log: string): void {
+        const parseRes = LatexParserModule.parse(log);
+        // const diag: Diagnostic[] = [];
+        for (let j = 0; j < parseRes.errors.length; j++) {
+            const error = parseRes.errors[j];
+            // if (error.line && error.file && error.content) {
+            console.log(error.line);
+            console.log(error.message);
+            console.log(error.file);
+            // }
+        }
     }
 
     private async _syncFileToEngine(url: string): Promise<void> {
