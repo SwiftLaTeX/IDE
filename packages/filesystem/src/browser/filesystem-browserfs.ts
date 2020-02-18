@@ -171,11 +171,11 @@ export class BrowserFileSystem implements FileSystem {
 
     async move(sourceUri: string, targetUri: string, options?: FileMoveOptions): Promise<FileStat> {
         if (this.client) {
-            this.client.onWillMove(sourceUri, targetUri);
+            this.client.willMove(sourceUri, targetUri);
         }
         const result = await this.doMove(sourceUri, targetUri, options);
         if (this.client) {
-            this.client.onDidMove(sourceUri, targetUri);
+            this.client.didMove(sourceUri, targetUri, false);
         }
         return result;
     }

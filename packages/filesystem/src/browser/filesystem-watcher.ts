@@ -15,7 +15,8 @@
  ********************************************************************************/
 
 import { injectable, inject, postConstruct } from 'inversify';
-import { Disposable, DisposableCollection, Emitter, Event } from '@theia/core/lib/common';
+import { Disposable, DisposableCollection } from '@theia/core/lib/common/disposable';
+import { Emitter, WaitUntilEvent } from '@theia/core/lib/common/event';
 import URI from '@theia/core/lib/common/uri';
 import { FileSystem, FileShouldOverwrite } from '../common/filesystem';
 import { DidFilesChangedParams, FileChangeType, FileSystemWatcherServer, WatchOptions } from '../common/filesystem-watcher-protocol';
@@ -66,7 +67,7 @@ export namespace FileChangeEvent {
     }
 }
 
-export interface FileMoveEvent {
+export interface FileMoveEvent extends WaitUntilEvent {
     sourceUri: URI
     targetUri: URI
 }
@@ -76,9 +77,40 @@ export namespace FileMoveEvent {
     }
 }
 
-export interface FileWillMoveEvent {
-    sourceUri: URI
-    targetUri: URI
+export interface FileEvent extends WaitUntilEvent {
+    uri: URI
+}
+
+export class FileOperationEmitter<E extends WaitUntilEvent> implements Disposable {
+
+    protected readonly onWillEmitter = new Emitter<E>();
+    readonly onWill = this.onWillEmitter.event;
+
+    protected readonly onDidFailEmitter = new Emitter<E>();
+    readonly onDidFail = this.onDidFailEmitter.event;
+
+    protected readonly onDidEmitter = new Emitter<E>();
+    readonly onDid = this.onDidEmitter.event;
+
+    protected readonly toDispose = new DisposableCollection(
+        this.onWillEmitter,
+        this.onDidFailEmitter,
+        this.onDidEmitter
+    );
+
+    dispose(): void {
+        this.toDispose.dispose();
+    }
+
+    async fireWill(event: Pick<E, Exclude<keyof E, 'waitUntil'>>): Promise<void> {
+        await WaitUntilEvent.fire(this.onWillEmitter, event);
+    }
+
+    async fireDid(failed: boolean, event: Pick<E, Exclude<keyof E, 'waitUntil'>>): Promise<void> {
+        const onDidEmitter = failed ? this.onDidFailEmitter : this.onDidEmitter;
+        await WaitUntilEvent.fire(onDidEmitter, event);
+    }
+
 }
 
 @injectable()
@@ -88,13 +120,17 @@ export class FileSystemWatcher implements Disposable {
     protected readonly toRestartAll = new DisposableCollection();
 
     protected readonly onFileChangedEmitter = new Emitter<FileChangeEvent>();
-    readonly onFilesChanged: Event<FileChangeEvent> = this.onFileChangedEmitter.event;
+    readonly onFilesChanged = this.onFileChangedEmitter.event;
 
-    protected readonly onDidMoveEmitter = new Emitter<FileMoveEvent>();
-    readonly onDidMove: Event<FileMoveEvent> = this.onDidMoveEmitter.event;
+    protected readonly fileDeleteEmitter = new FileOperationEmitter<FileEvent>();
+    readonly onWillDelete = this.fileDeleteEmitter.onWill;
+    readonly onDidFailDelete = this.fileDeleteEmitter.onDidFail;
+    readonly onDidDelete = this.fileDeleteEmitter.onDid;
 
-    protected readonly onWillMoveEmitter = new Emitter<FileWillMoveEvent>();
-    readonly onWillMove: Event<FileWillMoveEvent> = this.onWillMoveEmitter.event;
+    protected readonly fileMoveEmitter = new FileOperationEmitter<FileMoveEvent>();
+    readonly onWillMove = this.fileMoveEmitter.onWill;
+    readonly onDidFailMove = this.fileMoveEmitter.onDidFail;
+    readonly onDidMove = this.fileMoveEmitter.onDid;
 
     @inject(FileSystemWatcherServer)
     protected readonly server: FileSystemWatcherServer;
@@ -113,8 +149,8 @@ export class FileSystemWatcher implements Disposable {
     @postConstruct()
     protected init(): void {
         this.toDispose.push(this.onFileChangedEmitter);
-        this.toDispose.push(this.onDidMoveEmitter);
-        this.toDispose.push(this.onWillMoveEmitter);
+        this.toDispose.push(this.fileDeleteEmitter);
+        this.toDispose.push(this.fileMoveEmitter);
         this.toDispose.push(this.server);
         this.server.setClient({
             onDidFilesChanged: e => this.onDidFilesChanged(e)
@@ -128,8 +164,10 @@ export class FileSystemWatcher implements Disposable {
 
         this.filesystem.setClient({
             shouldOverwrite: this.shouldOverwrite.bind(this),
-            onDidMove: this.fireDidMove.bind(this),
-            onWillMove: this.fireWillMove.bind(this)
+            willDelete: uri => this.fileDeleteEmitter.fireWill({ uri: new URI(uri) }),
+            didDelete: (uri, failed) => this.fileDeleteEmitter.fireDid(failed, { uri: new URI(uri) }),
+            willMove: (source, target) => this.fileMoveEmitter.fireWill({ sourceUri: new URI(source), targetUri: new URI(target) }),
+            didMove: (source, target, failed) => this.fileMoveEmitter.fireDid(failed, { sourceUri: new URI(source), targetUri: new URI(target) })
         });
     }
 
@@ -188,18 +226,5 @@ export class FileSystemWatcher implements Disposable {
         return Object.keys(patterns).filter(pattern => patterns[pattern]);
     }
 
-    protected fireDidMove(sourceUri: string, targetUri: string): void {
-        this.onDidMoveEmitter.fire({
-            sourceUri: new URI(sourceUri),
-            targetUri: new URI(targetUri)
-        });
-    }
-
-    protected fireWillMove(sourceUri: string, targetUri: string): void {
-        this.onWillMoveEmitter.fire({
-            sourceUri: new URI(sourceUri),
-            targetUri: new URI(targetUri)
-        });
-    }
-
 }
+
