@@ -26,8 +26,17 @@ import { MonacoEditorModel } from '@theia/monaco/lib/browser/monaco-editor-model
 import { MonacoYJSBinding } from './monaco-yjs';
 import { OutputChannelManager, OutputChannel } from '@theia/output/lib/common/output-channel';
 import { ProblemManager } from '@theia/markers/lib/browser/problem/problem-manager';
-// import { Diagnostic } from '@theia/languages/lib/browser';
+import { Diagnostic } from '@theia/languages/lib/browser';
 import { LatexParserModule } from './latex-log-parser';
+import { FileSystemWatcher, FileChangeEvent } from '@theia/filesystem/lib/browser/filesystem-watcher';
+import URI from '@theia/core/lib/common/uri';
+import { FrontendApplication } from '@theia/core/lib/browser';
+import { LaTeXPreviewWidget } from './latex-preview-widget';
+import { UriAwareCommandHandler } from '@theia/core/lib/common/uri-command-handler';
+import { SelectionService } from '@theia/core/lib/common/selection-service';
+import { NavigatorContextMenu } from '@theia/navigator/lib/browser/navigator-contribution';
+
+const MAIN_ENTRY_TRICK: string = '/InP0t_SwIfTLoTEx_';
 
 export namespace LaTeXMenus {
     export const LATEX = [...MAIN_MENU_BAR, '7_latex'];
@@ -65,6 +74,11 @@ export namespace LaTeXCommands {
         category: LATEX_CATEGORY,
         label: 'Restart Engine'
     };
+    export const ENGINE_SET_ENTRY: Command = {
+        id: 'latex:setentry',
+        category: LATEX_CATEGORY,
+        label: 'Set Main Entry File'
+    };
 }
 
 @injectable()
@@ -92,6 +106,12 @@ export class LaTeXMenuContribution implements MenuContribution {
             commandId: LaTeXCommands.ENGINE_RESTART.id,
             order: '4'
         });
+
+        /* Navigator  */
+        menus.registerMenuAction(NavigatorContextMenu.CLIPBOARD, {
+            commandId: LaTeXCommands.ENGINE_SET_ENTRY.id,
+            order: 'z'
+        });
     }
 }
 
@@ -103,7 +123,7 @@ export class LaTeXCommandContribution implements CommandContribution {
     protected readonly toDispose = new DisposableCollection();
     private readonly opened_handles: Map<string, number> = new Map<string, number>();
     private output_channel: OutputChannel;
-
+    private preview_widget: LaTeXPreviewWidget;
     constructor(
         @inject(S3StorageSystem) private readonly s3filesystem: S3StorageSystem,
         @inject(MessageService) private readonly messageService: MessageService,
@@ -112,11 +132,17 @@ export class LaTeXCommandContribution implements CommandContribution {
         @inject(MonacoWorkspace) private readonly workspace: MonacoWorkspace,
         @inject(OutputChannelManager) protected readonly outputChannelManager: OutputChannelManager,
         @inject(ProblemManager) protected readonly problemManager: ProblemManager,
+        @inject(FileSystemWatcher) protected readonly fileSystemWatcher: FileSystemWatcher,
+        @inject(FrontendApplication) protected readonly app: FrontendApplication,
+        @inject(SelectionService) protected readonly selectionService: SelectionService,
     ) {
         this.toDispose.push(this.workspace.onDidOpenTextDocument(model => this.fireDidOpenDocument(model)));
         this.toDispose.push(this.workspace.onDidChangeTextDocument(param => this.fireDidChangeContents(param)));
         this.toDispose.push(this.workspace.onDidCloseTextDocument(model => this.fireDidCloseDocument(model)));
+        this.listenOnDirChange();
         this.output_channel = this.outputChannelManager.getChannel('LaTeX');
+        this.preview_widget = new LaTeXPreviewWidget();
+        this.app.shell.addWidget(this.preview_widget, { area: 'right' });
     }
 
     registerCommands(registry: CommandRegistry): void {
@@ -140,6 +166,13 @@ export class LaTeXCommandContribution implements CommandContribution {
             execute: () => this.restartEngine(),
             isEnabled: () => this.latexEngine.isReady(),
         });
+        registry.registerCommand(
+            LaTeXCommands.ENGINE_SET_ENTRY,
+            new UriAwareCommandHandler<URI>(this.selectionService, {
+                execute: uris => this.setMainFile(uris),
+                isEnabled: uris => this.canSetAsMainFile(uris),
+            }, { multi: false })
+        );
     }
 
     protected async quickBuild(): Promise<void> {
@@ -149,12 +182,12 @@ export class LaTeXCommandContribution implements CommandContribution {
 
         const mainTempFiles = await this.resolveMainFile();
         if (mainTempFiles.length === 0) {
-            this.messageService.error('Cannot locate the main LaTeX entry file. Please create a main entry file before compilation', { timeout: 3000 });
+            this.messageService.error('Cannot locate the main LaTeX entry file. Please create a main entry file in root directory before compilation.', { timeout: 15000 });
             return;
         }
 
         if (mainTempFiles.length > 1) {
-            this.messageService.error(`Compiler cannot tell which file is the main entry file, either ${mainTempFiles[0]} or ${mainTempFiles[1]}`, { timeout: 3000 });
+            this.messageService.error(`Compiler cannot tell which file is the main entry file, either ${mainTempFiles[0]} or ${mainTempFiles[1]}.`, { timeout: 15000 });
             return;
         }
 
@@ -179,20 +212,48 @@ export class LaTeXCommandContribution implements CommandContribution {
             // const reveal = true;
             // await this.outputContribution.openView({ activate, reveal });
         }
-
+        this.preview_widget.showPage();
     }
 
-    private processCompileLog(log: string): void {
+    private async processCompileLog(log: string): Promise<void> {
         const parseRes = LatexParserModule.parse(log);
-        // const diag: Diagnostic[] = [];
-        for (let j = 0; j < parseRes.errors.length; j++) {
-            const error = parseRes.errors[j];
-            // if (error.line && error.file && error.content) {
-            console.log(error.line);
-            console.log(error.message);
-            console.log(error.file);
-            // }
+        const diags: Map<string, Diagnostic[]> = new Map<string, Diagnostic[]>();
+        const allStuff = parseRes.errors.concat(parseRes.warnings);
+        for (let j = 0; j < allStuff.length; j++) {
+            const error = allStuff[j];
+            let uri = error.file;
+            if (uri.endsWith('.tex') || uri.endsWith('.bib')) {
+                const diag: Diagnostic = {
+                    range: {
+                        start: {
+                            line: error.line - 1,
+                            character: 0
+                        },
+                        end: {
+                            line: error.line - 1,
+                            character: 0
+                        }
+                    },
+                    message: error.message,
+                    severity: error.level === 'error' ? 1 : 2
+                };
+                /* Log file has the format ./xxx/xxx.tex, convert to them to standard */
+                uri = uri.substr(1);
+                /* Main_entry_trick */
+                if (uri === MAIN_ENTRY_TRICK + '.tex') {
+                    const temps = await this.resolveMainFile();
+                    uri = temps[0];
+                }
+
+                if (!diags.has(uri)) {
+                    diags.set(uri, []);
+                }
+                diags.get(uri)!.push(diag);
+            }
         }
+        diags.forEach((diag, key) => {
+            this.problemManager.setMarkers(new URI(key), 'SwiftLaTeX', diag);
+        });
     }
 
     private async _syncFileToEngine(url: string): Promise<void> {
@@ -284,7 +345,7 @@ export class LaTeXCommandContribution implements CommandContribution {
         this.messageService.info('Exporting PDF...', { timeout: 3000 });
         await this.xdvExporter.loadExporter();
         await this._syncFileToExporter('/');
-        this.xdvExporter.writeMainXDVFile(this.cachedXDV);
+        this.xdvExporter.writeMemFSFile(this.cachedXDV, MAIN_ENTRY_TRICK + '.xdv');
         const res = await this.xdvExporter.exportPDF();
         this.xdvExporter.closeWorker();
         this.output_channel.clear();
@@ -393,16 +454,32 @@ export class LaTeXCommandContribution implements CommandContribution {
         return possibleCandicates;
     }
 
-    public setMainFile(uri: string): void {
+    private setMainFile(uri: URI): void {
         if (!uri) {
             return;
         }
-        if (uri.startsWith('file:///')) {
-            uri = uri.substr(7);
+
+        const uri_str = uri.toString().substr(7);
+        window.localStorage.setItem(window.location.pathname + 'main_config', uri_str);
+        this.messageService.info(`Set ${uri_str} as the main entry.`, { timeout: 3000 });
+    }
+
+    private canSetAsMainFile(uri: URI): boolean {
+        if (!uri) {
+            return false;
         }
-        if (uri.startsWith('/') && uri.endsWith('.tex')) {
-            window.localStorage.setItem(window.location.pathname + 'main_config', uri);
+
+        const uri_string = uri.toString();
+
+        if (!uri_string.endsWith('.tex')) {
+            return false;
         }
+
+        if (!uri_string.startsWith('file:///')) {
+            return false;
+        }
+
+        return (uri_string.match(/\//g) || []).length === 3;
     }
 
     private async _syncFileToExporter(url: string): Promise<void> {
@@ -421,6 +498,24 @@ export class LaTeXCommandContribution implements CommandContribution {
                 console.log('Writing file to exporter ' + obj.uri);
             }
         }
+    }
+
+    protected async listenOnDirChange(): Promise<void> {
+        const fileUri = new URI('file:///');
+        const watcher = await this.fileSystemWatcher.watchFileChanges(fileUri);
+        this.toDispose.push(watcher);
+        const onFileChange = (events: FileChangeEvent) => {
+            for (let k = 0; k < events.length; k++) {
+                /* Todo Import a more clear symbol */
+                /* We mean delete or add file */
+                if (events[k].type === 1 || events[k].type === 2) {
+                    console.log('Need to resync file');
+                    this.hasFileSyncedToEngine = false;
+                    break;
+                }
+            }
+        };
+        this.toDispose.push(this.fileSystemWatcher.onFilesChanged(onFileChange));
     }
 
 }

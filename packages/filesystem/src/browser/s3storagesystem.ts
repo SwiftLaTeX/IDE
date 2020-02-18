@@ -472,6 +472,7 @@ export class S3StorageSystem {
             delete srcJsonList[srcBasename];
             srcParentObj.data = JSON.stringify(srcJsonList);
             await this._putObject(srcParentNode.node_id, srcParentObj);
+            (<any>this.fileSystemWatcherServer).kernel_notify(p, 2);
             (<any>this.fileSystemWatcherServer).kernel_notify(newPath, 1);
             return;
         }
@@ -502,6 +503,7 @@ export class S3StorageSystem {
         /* Update Dst */
         dstParentObj.data = JSON.stringify(dstJsonList);
         await this._putObject(dstParentNode.node_id, dstParentObj);
+        (<any>this.fileSystemWatcherServer).kernel_notify(p, 2);
         (<any>this.fileSystemWatcherServer).kernel_notify(newPath, 1);
     }
 

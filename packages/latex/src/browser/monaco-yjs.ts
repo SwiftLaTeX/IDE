@@ -115,10 +115,13 @@ export class MonacoYJSBinding {
 			/* To debounce */
 			this.hasInited = true;
 			console.log('Disposing editor event handlers');
-			this.monacoHander.dispose();
+			if (this.monacoHander) {
+				this.monacoHander.dispose();
+			}
 			ytext._eH.l.length = 0;
 			ydoc.destroy();
-			provider.disconnect();
+			// provider.disconnect();
+			provider.destroy();
 		});
 
 		provider.connect();
