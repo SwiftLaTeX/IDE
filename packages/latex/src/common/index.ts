@@ -14,7 +14,6 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-
 export const LATEX_SCHEME = 'latex';
 export const LATEX_LANGUAGE_ID = 'latex';
 export const LATEX_LANGUAGE_NAME = 'LaTeX';

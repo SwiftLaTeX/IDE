@@ -352,7 +352,6 @@ export class Machine {
 		this.position.h += width;
 	}
 
-
 	putImage(width: number, height: number, url: string): void {
 		this.endTextMode();
 		const cssleft = (this.position.h + this.h_offset) * this.pointsPerDviUnit;

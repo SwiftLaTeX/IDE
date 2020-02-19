@@ -30,5 +30,3 @@ export class EnvVariablesDummyServer implements EnvVariablesServer {
 		return undefined;
 	}
 }
-
-

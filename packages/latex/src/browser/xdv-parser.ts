@@ -84,7 +84,6 @@ enum Opcode {
 	set_text_and_glyphs = 254
 }
 
-
 export class DviCommand {
 	length: number;
 
@@ -168,7 +167,6 @@ export class PutRule extends DviCommand {
 		return `PutRule { a: ${this.a}, b: ${this.b} }`;
 	}
 }
-
 
 export class SetRule extends DviCommand {
 	opcode: Opcode.set_rule;
@@ -501,7 +499,6 @@ function _texColor(name: string): string {
 	return 'black';
 }
 
-
 class Special extends DviCommand {
 	opcode: Opcode.xxx;
 
@@ -754,7 +751,6 @@ class NativeFontDefinition extends DviCommand {
 	}
 }
 
-
 type Command =
 	SetChar | SetRule | PutRule | Nop | Bop | Eop | Push | Pop |
 	MoveRight | MoveW | MoveX | MoveDown | MoveY | MoveZ | SetFont | Special |
@@ -817,7 +813,6 @@ function parseCommand(opcode: Opcode, buffer: Buffer): Command {
 				char_positon: char_sp,
 				length: 10 + 1
 			});
-
 
 		case Opcode.set_rule:
 			if (buffer.length < 8) { throw new Error(`not enough bytes to process opcode ${opcode}`); }
@@ -1146,7 +1141,6 @@ function parseCommand(opcode: Opcode, buffer: Buffer): Command {
 	throw new Error(`routine for ${opcode} is not implemented`);
 }
 
-
 function locatePagePtr(buffer: Buffer, lastBop: number, page: number): number {
 	let offset = lastBop;
 	while (offset > 0) {
@@ -1182,7 +1176,6 @@ function parseHeader(buffer: Buffer, machine: Machine): number {
 	}
 
 	const command = parseCommand(preamble_code, buffer.slice(offset + 1));
-
 
 	command.execute(machine);
 	offset += command.length;
@@ -1252,7 +1245,6 @@ export function parseDVI(dviContent: Buffer, machine: Machine, page: number): vo
 	} else {
 		offset = firstBop;
 	}
-
 
 	while (offset < buffer.length) {
 		const opcode: Opcode = buffer.readUInt8(offset);

@@ -434,7 +434,6 @@ export class S3StorageSystem {
         return results;
     }
 
-
     public async rename(p: string, newPath: string): Promise<void> {
         if (!p || p === '/') {
             throw Error('cannot rename/copy root folder /');
@@ -668,4 +667,3 @@ export class S3StorageSystem {
         }
     }
 }
-

@@ -189,6 +189,9 @@
       ],
       "@theia/swiftlatex/*": [
         "examples/browser/*"
+      ],
+      "@theia/latex/lib/*": [
+        "packages/latex/src/*"
       ]
     }
   }

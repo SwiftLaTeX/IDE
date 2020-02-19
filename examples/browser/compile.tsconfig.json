@@ -46,6 +46,9 @@
     },
     {
       "path": "../../packages/workspace/compile.tsconfig.json"
+    },
+    {
+      "path": "../../packages/latex/compile.tsconfig.json"
     }
   ]
 }

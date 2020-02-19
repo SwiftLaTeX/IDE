@@ -363,7 +363,6 @@ export class BrowserFileSystem implements FileSystem {
         }
     }
 
-
     protected async doGetStat(uri: URI, depth: number): Promise<FileStat | undefined> {
         const s3obj = await this._s3fs.stat(FileUriLite.fsPath(uri));
         if (s3obj) {
@@ -433,4 +432,3 @@ export class BrowserFileSystem implements FileSystem {
     }
 
 }
-

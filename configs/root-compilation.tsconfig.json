@@ -162,6 +162,9 @@
     },
     {
       "path": "../examples/browser/compile.tsconfig.json"
+    },
+    {
+      "path": "../packages/latex/compile.tsconfig.json"
     }
   ]
 }

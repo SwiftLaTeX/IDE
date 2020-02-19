@@ -157,7 +157,6 @@ export class LaTeXEngine {
 		}
 	}
 
-
 	public makeMemFSFolder(folder: string): void {
 		this.checkEngineStatus();
 		if (this.latexWorker !== undefined) {
