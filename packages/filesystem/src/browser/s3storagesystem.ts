@@ -652,6 +652,12 @@ export class S3StorageSystem {
             }
             if (this.opts.expiry < Date.now()) {
                 /* Unlikely to happen for https */
+                alert('Your system clock is incorrect, please sync your clock first');
+                throw Error('Please sync the time. ');
+            }
+
+            if (this.opts.expiry > Date.now() + 3600 * 1000) {
+                alert('Your system clock is incorrect, please sync your clock first');
                 throw Error('Please sync the time. ');
             }
 
