@@ -1230,8 +1230,8 @@ function parseFooter(buffer: Buffer, machine: Machine): number {
 	return prevPtr; // Last Bop
 }
 
-export function parseDVI(dviContent: Buffer, machine: Machine, page: number): void {
-	const buffer = dviContent;
+export function parseXDV(dviContent: Buffer | Uint8Array, machine: Machine, page: number): void {
+	const buffer = Buffer.from(dviContent);
 
 	let offset = 0;
 

@@ -18,3 +18,34 @@
   background-color: #9c9c9c ;
 }
 
+.swiftlatex-preview-toolbar {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    padding: 0 10px;
+}
+
+.swiftlatex-preview-toolbar-button {
+    min-width: 1rem;
+    text-align: center;
+    flex-grow: 0;
+    font-family: FontAwesome;
+    font-size: 16px;
+    margin: 0px 4px 0px 4px;
+}
+
+.swiftlatex-preview-toolbar-previous::before {
+    content: "\f053";
+}
+
+.swiftlatex-preview-toolbar-next::before {
+    content: "\f054";
+}
+
+.swiftlatex-preview-toolbar-input {
+    width: 100%;
+    line-height: 1.00;
+    margin-left: 4px;
+    margin-right: 4px;
+}

@@ -92,7 +92,7 @@ export class DviFont {
 	isnative: boolean;
 }
 
-export class Machine {
+export class XDVMachine {
 	body: string;
 
 	style: string;
@@ -126,6 +126,8 @@ export class Machine {
 	v_offset = 0;
 
 	inTextMode = false;
+
+	totalPages = 0;
 
 	lastSpacePos: CharPosition | undefined = undefined;
 
@@ -161,6 +163,10 @@ export class Machine {
 			throw Error('Color stack is empty');
 		}
 
+	}
+
+	setTotalPage(page: number): void {
+		this.totalPages = page;
 	}
 
 	setPapersize(width: number, height: number): void {
