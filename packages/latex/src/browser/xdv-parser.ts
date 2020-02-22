@@ -14,7 +14,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Machine, CharPosition } from './xdv-machine';
+import { XDVMachine, CharPosition } from './xdv-machine';
 
 const FILE_VERSION = 71;
 
@@ -94,7 +94,7 @@ export class DviCommand {
 		Object.assign(this, properties);
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 
 	}
 
@@ -119,7 +119,7 @@ export class SetChar extends DviCommand {
 		this.opcode = Opcode.set_char;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		machine.setChar(this.c, this.text_height, this.text_width, this.char_positon);
 	}
 
@@ -138,7 +138,7 @@ export class SetSpace extends DviCommand {
 		this.opcode = Opcode.set2;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		machine.setSpace(this.char_positon);
 	}
 
@@ -159,7 +159,7 @@ export class PutRule extends DviCommand {
 		this.opcode = Opcode.put_rule;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		machine.putRule(this.a, this.b, false);
 	}
 
@@ -180,7 +180,7 @@ export class SetRule extends DviCommand {
 		this.opcode = Opcode.set_rule;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		machine.putRule(this.a, this.b, true);
 	}
 
@@ -222,7 +222,7 @@ class Bop extends DviCommand {
 		this.opcode = Opcode.bop;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		machine.beginPage(this.c_0, this.h_offset, this.v_offset);
 	}
 
@@ -241,7 +241,7 @@ class Eop extends DviCommand {
 		this.opcode = Opcode.eop;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		if (machine.stack.length) { throw new Error('Stack should be empty at the end of a page.'); }
 
 		machine.endPage();
@@ -262,7 +262,7 @@ class Push extends DviCommand {
 		this.opcode = Opcode.push;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		machine.push();
 	}
 
@@ -281,7 +281,7 @@ class Pop extends DviCommand {
 		this.opcode = Opcode.pop;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		machine.pop();
 	}
 
@@ -300,7 +300,7 @@ class MoveRight extends DviCommand {
 		this.opcode = Opcode.right;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		machine.moveRight(this.b);
 	}
 
@@ -325,7 +325,7 @@ class MoveW extends DviCommand {
 		this.opcode = Opcode.w;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		if (this.length > 1) {
 			machine.position.w = this.b;
 		}
@@ -354,7 +354,7 @@ class MoveX extends DviCommand {
 		this.opcode = Opcode.x;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		if (this.length > 1) {
 			machine.position.x = this.b;
 		}
@@ -382,7 +382,7 @@ class MoveDown extends DviCommand {
 		this.opcode = Opcode.down;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		machine.moveDown(this.a);
 	}
 
@@ -407,7 +407,7 @@ class MoveY extends DviCommand {
 		this.opcode = Opcode.y;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		if (this.length > 1) {
 			machine.position.y = this.a;
 		}
@@ -436,7 +436,7 @@ class MoveZ extends DviCommand {
 		this.opcode = Opcode.z;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		if (this.length > 1) {
 			machine.position.z = this.a;
 		}
@@ -465,7 +465,7 @@ class SetFont extends DviCommand {
 		this.opcode = Opcode.fnt;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		// console.log("Setting mainfont to " + this.k);
 
 		machine.setFont(this.k);
@@ -491,10 +491,21 @@ function _texColor(name: string): string {
 	if (name.startsWith('rgb ')) {
 		const out = name.split(' ').slice(1).map(x => _intToHex(parseFloat(x) * 255)).join('');
 		return `#${out}`;
-	}
-	if (name.startsWith('gray ')) {
+	} else if (name.startsWith('gray ')) {
 		const x = name.split(' ')[1];
 		return _texColor(`rgb ${x} ${x} ${x}`);
+	} else if (name.startsWith('cmyk ')) {
+		const channels = name.split(' ');
+		if (channels.length === 5) {
+			const channel_c = parseFloat(channels[1]);
+			const channel_m = parseFloat(channels[2]);
+			const channel_y = parseFloat(channels[3]);
+			const channel_k = parseFloat(channels[4]);
+			const new_r = (1 - channel_c) * (1 - channel_k);
+			const new_g = (1 - channel_m) * (1 - channel_k);
+			const new_b = (1 - channel_y) * (1 - channel_k);
+			return _texColor(`rgb ${new_r} ${new_g} ${new_b}`);
+		}
 	}
 	return 'black';
 }
@@ -514,7 +525,7 @@ class Special extends DviCommand {
 		return `Special { x: '${this.x}' }`;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		if (this.x.startsWith('dvisvgm:raw ')) {
 			const svg = this.x.replace(/^dvisvgm:raw /, '');
 			machine.putSVG(svg);
@@ -533,7 +544,7 @@ class Special extends DviCommand {
 		} else if (this.x.startsWith('color push ')) {
 			const color = _texColor(this.x.replace(/^color push /, ''));
 			machine.pushColor(color);
-		} else if (this.x.startsWith('color pop ')) {
+		} else if (this.x.startsWith('color pop')) {
 			machine.popColor();
 		} else if (this.x.startsWith('pdf:image bbox 0 0 ')) {
 			const image = this.x.replace(/pdf:image bbox 0 0 /, '').split(' ');
@@ -541,6 +552,8 @@ class Special extends DviCommand {
 			const imageHeight = Number(image[1]);
 			const url = image[6].substr(1).slice(0, -1);
 			machine.putImage(imageWidth, imageHeight, url);
+		} else {
+			// console.log('unhandled ' + this.x);
 		}
 	}
 }
@@ -556,7 +569,7 @@ class SetTextGlyph extends DviCommand {
 		super(properties);
 		this.opcode = Opcode.set_text_and_glyphs;
 	}
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		machine.setNativeText(this.text, this.textpos, this.width);
 	}
 	toString(): string {
@@ -586,7 +599,7 @@ class FontDefinition extends DviCommand {
 		this.opcode = Opcode.fnt_def;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		// console.log("Defining Local Font name: " + this.n + " index: " + this.k);
 		machine.loadFont({
 			name: this.n,
@@ -621,7 +634,7 @@ class Preamble extends DviCommand {
 		this.opcode = Opcode.pre;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		if (this.num <= 0) { throw new Error('Invalid numerator (must be > 0)'); }
 
 		if (this.den <= 0) { throw new Error('Invalid denominator (must be > 0)'); }
@@ -665,7 +678,7 @@ class Post extends DviCommand {
 		this.opcode = Opcode.post;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		machine.post(this);
 	}
 
@@ -688,7 +701,7 @@ class PostPost extends DviCommand {
 		this.opcode = Opcode.post_post;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		machine.postPost(this);
 	}
 
@@ -731,7 +744,7 @@ class NativeFontDefinition extends DviCommand {
 		this.opcode = Opcode.define_native_font;
 	}
 
-	execute(machine: Machine): void {
+	execute(machine: XDVMachine): void {
 		// console.log("Defining Native Font name: " + this.filename + " index: " + this.fontnumber);
 		machine.loadFont({
 			name: this.filename,
@@ -1153,7 +1166,7 @@ function locatePagePtr(buffer: Buffer, lastBop: number, page: number): number {
 			throw new Error('No such a page');
 		}
 		if (boppage === page) {
-			console.log(`Find page ${page}`);
+			// console.log(`Find page ${page}`);
 			break;
 		}
 		const _prevPtr = buffer.readUInt32BE(offset + 41);
@@ -1165,7 +1178,7 @@ function locatePagePtr(buffer: Buffer, lastBop: number, page: number): number {
 	return offset;
 }
 
-function parseHeader(buffer: Buffer, machine: Machine): number {
+function parseHeader(buffer: Buffer, machine: XDVMachine): number {
 	let offset = 0;
 
 	// Parse Header
@@ -1184,7 +1197,7 @@ function parseHeader(buffer: Buffer, machine: Machine): number {
 	return offset;
 }
 
-function parseFooter(buffer: Buffer, machine: Machine): number {
+function parseFooter(buffer: Buffer, machine: XDVMachine): number {
 	let offset = buffer.length - 1;
 	// Locate Post
 	while (offset > 0) {
@@ -1209,6 +1222,11 @@ function parseFooter(buffer: Buffer, machine: Machine): number {
 	if (post_opcode !== 248) {
 		throw new Error('Parse failed in reading post preamble');
 	}
+
+	const total_page = buffer.readUInt16BE(offset + 27);
+
+    machine.totalPages = total_page;
+
 	prevPtr = buffer.readUInt32BE(offset + 1);
 	if (prevPtr > offset) {
 		throw new Error('Parse failed in reading post preamble');
@@ -1230,7 +1248,7 @@ function parseFooter(buffer: Buffer, machine: Machine): number {
 	return prevPtr; // Last Bop
 }
 
-export function parseXDV(dviContent: Buffer | Uint8Array, machine: Machine, page: number): void {
+export function parseXDV(dviContent: Buffer | Uint8Array, machine: XDVMachine, page: number): void {
 	const buffer = Buffer.from(dviContent);
 
 	let offset = 0;

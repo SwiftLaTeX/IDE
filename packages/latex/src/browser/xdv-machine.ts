@@ -93,37 +93,37 @@ export class DviFont {
 }
 
 export class XDVMachine {
-	body: string;
+	body: string = '';
 
-	style: string;
+	style: string = '';
 
-	pointsPerDviUnit: number;
+	pointsPerDviUnit: number = 0;
 
-	svgDepth: number;
+	svgDepth: number = 0;
 
-	color: string;
+	color: string = 'black';
 
-	colorStack: string[];
+	colorStack: string[] = [];
 
-	paperwidth: number;
+	paperwidth: number = 600;
 
-	paperheight: number;
+	paperheight: number = 800;
 
-	currentpage: number;
+	currentpage: number = 1;
 
-	fonts: Map<number, DviFont>;
+	fonts: Map<number, DviFont> = new Map<number, DviFont>();
 
-	font: DviFont;
+	font: DviFont; /* Do need to init */
 
-	usedfonts: string[];
+	usedfonts: Map<string, number> = new Map<string, number>();
 
-	stack: Position[];
+	stack: Position[] = [];
 
-	position: Position;
+	position: Position; /* Do need to init */
 
-	h_offset = 0;
+	h_offset = 4736287;
 
-	v_offset = 0;
+	v_offset = 4736287;
 
 	inTextMode = false;
 
@@ -132,15 +132,7 @@ export class XDVMachine {
 	lastSpacePos: CharPosition | undefined = undefined;
 
 	constructor() {
-		this.fonts = new Map();
-		this.body = '';
-		this.style = '';
-		this.usedfonts = [];
-		this.color = 'black';
-		this.svgDepth = 0;
-		this.pointsPerDviUnit = 0;
-		this.h_offset = 0;
-		this.v_offset = 0;
+
 	}
 
 	getBody(): string {
@@ -154,19 +146,16 @@ export class XDVMachine {
 	pushColor(c: string): void {
 		this.colorStack.push(this.color);
 		this.color = c;
+		this.endTextMode();
 	}
 
 	popColor(): void {
-		if (this.color.length >= 1) {
+		if (this.colorStack.length >= 1) {
 			this.color = this.colorStack.pop()!;
 		} else {
 			throw Error('Color stack is empty');
 		}
-
-	}
-
-	setTotalPage(page: number): void {
-		this.totalPages = page;
+		this.endTextMode();
 	}
 
 	setPapersize(width: number, height: number): void {
@@ -207,8 +196,6 @@ export class XDVMachine {
 
 	beginPage(page: number, h_offset: number, v_offset: number): void {
 		this.stack = [];
-		this.h_offset = h_offset;
-		this.v_offset = v_offset;
 		this.position = new Position();
 		this.currentpage = page + 1;
 		this.body += `<div id='page${this.currentpage}' class='page_decoration'>`;
@@ -258,8 +245,8 @@ export class XDVMachine {
 	setFont(fontnum: number): void {
 		if (this.fonts.has(fontnum)) {
 			this.font = this.fonts.get(fontnum)!;
-			if (!(this.font.name in this.usedfonts)) {
-				this.usedfonts.push(this.font.name);
+			if (!(this.usedfonts.has(this.font.name))) {
+				this.usedfonts.set(this.font.name, 1);
 				if (this.font.isnative) {
 					if (this.font.name.endsWith('.ttf') || this.font.name.endsWith('.otf')) {
 						// Local font
@@ -268,7 +255,8 @@ export class XDVMachine {
 						this.style += `@font-face { font-family:${this.font.name}; src:url(https://texlive.swiftlatex.com/${this.font.name}.otf); } \n\n`;
 					}
 				} else {
-					this.style += `@font-face { font-family:${this.font.name}; src:url(fonts/output/${this.font.name}.woff); } \n`;
+					// Texfont
+					this.style += `@font-face { font-family:${this.font.name}; src:url(https://texlive.swiftlatex.com/fonts/${this.font.name}.woff); }\n`;
 				}
 			}
 		} else {
@@ -311,18 +299,19 @@ export class XDVMachine {
 		const cssleft = (this.position.h + this.h_offset) * this.pointsPerDviUnit;
 		const cssheight = text_height * this.pointsPerDviUnit;
 		const csstop = (this.position.v + this.v_offset) * this.pointsPerDviUnit;
+		// console.log(this.font.scaleFactor);
 		const fontsize = this.font.designSize / 65536.0;
 		if (this.svgDepth === 0) {
 			this.body += `<div style="line-height: 0; color: ${this.color}; 
-			font-family: ${this.font.name}; font-size: ${fontsize}px;
-			position: absolute; top: ${Number(csstop - cssheight).toFixed(2)}px;
-			left: ${Number(cssleft).toFixed(2)}px;">${htmlText}<span style="display: inline-block;
-			 vertical-align: ${Number(cssheight).toFixed(2)}px;"></span></div>\n`;
+            font-family: ${this.font.name}; font-size: ${fontsize}px; 
+            position: absolute; top: ${Number(csstop - cssheight).toFixed(2)}px; vertical-align: baseline;
+            left: ${Number(cssleft).toFixed(2)}px;">${htmlText}<span style="display: inline-block;
+             vertical-align: ${Number(cssheight).toFixed(2)}px; height: 0px; line-height: 0;"></span></div>`;
 		} else {
 			const bottom = (this.position.v + this.v_offset) * this.pointsPerDviUnit;
 			this.body += `<text alignment-baseline="baseline"
-			y="${bottom}" x="${cssleft}" style="font-family: ${this.font.name};"
-			font-size="${fontsize}">${htmlText}</text>\n`;
+            y="${bottom}" x="${cssleft}" style="font-family: ${this.font.name};"
+            font-size="${fontsize}">${htmlText}</text>\n`;
 		}
 		this.position.h += text_width;
 	}
@@ -342,17 +331,16 @@ export class XDVMachine {
 		if (!this.inTextMode) {
 			this.inTextMode = true;
 			this.body += `<div class="pf-line"
-			style="color: ${this.color}; font-family: ${this.font.name};
-			font-size: ${Number(fontsize).toFixed(2)}px;
-			top: ${Number(csstop - textheight).toFixed(2)}px;
-			left: ${Number(cssleft).toFixed(2)}px;">`;
+            style="color: ${this.color}; font-family: ${this.font.name};
+            font-size: ${Number(fontsize).toFixed(2)}px;
+            top: ${Number(csstop - textheight).toFixed(2)}px;
+            left: ${Number(cssleft).toFixed(2)}px;">`;
 		}
 
 		for (let j = 0; j < text.length; j++) {
 			const pos = textpos[j];
 			this.body += `<span l='${pos.line}'
-			c='${pos.column}' f='${pos.fid}' cs='${pos.cs}'>
-			${String.fromCharCode(text[j])}</span>`;
+            c='${pos.column}' f='${pos.fid}' cs='${pos.cs}'>${String.fromCharCode(text[j])}</span>`;
 		}
 
 		this.position.h += width;
@@ -364,11 +352,11 @@ export class XDVMachine {
 
 		const csstop = (this.position.v + this.v_offset) * this.pointsPerDviUnit;
 		this.body += `<div data-url="${url}"
-		style="top: ${Number(csstop - height).toFixed(2)}px;
-		left: ${Number(cssleft).toFixed(2)}px;
-		position: absolute; height:${Number(height).toFixed(2)}px;
-		width:${Number(width).toFixed(2)}px;
-		background-color:grey;"></div>`;
+        style="top: ${Number(csstop - height).toFixed(2)}px;
+        left: ${Number(cssleft).toFixed(2)}px;
+        position: absolute; height:${Number(height).toFixed(2)}px;
+        width:${Number(width).toFixed(2)}px;
+        background-color:grey;"></div>`;
 	}
 
 	loadFont(properties: any, fontnumber: number, isnative: boolean): void {

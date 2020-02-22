@@ -1,22 +1,30 @@
 .swiftlatex-preview-widget {
-    
+
+}
+
+.pf-line {
+  line-height: 1.00;
+  white-space: pre;
+  position: absolute;
+}
+
+.pf-space {
+  display: inline-block;
 }
 
 #swiftlatex_preview_viewer {
-  position:absolute;
-  top:0;
-  left:0;
-  margin:0;
-  padding:0;
-  border:0;
-  bottom:0;
-  right:0;
-  height:100%;
+  background-color: #9c9c9c; margin: 0; padding:0; border: 0;
   width: 100%;
-  overflow:auto;
-  z-index: 0;
-  background-color: #9c9c9c ;
+  height: 96%; 
+  overflow-x: scroll;
+  overflow-y: scroll;
 }
+
+.page_decoration {
+  margin: 0 auto; background-color: white;
+  transform-origin: 50% 0;
+}
+
 
 .swiftlatex-preview-toolbar {
     margin-top: 8px;
@@ -43,9 +51,22 @@
     content: "\f054";
 }
 
+.swiftlatex-preview-toolbar-zoomout::before {
+    content: "\f010";
+}
+
+.swiftlatex-preview-toolbar-zoomin::before {
+    content: "\f00e";
+}
+
 .swiftlatex-preview-toolbar-input {
-    width: 100%;
+    width: 40%;
     line-height: 1.00;
     margin-left: 4px;
     margin-right: 4px;
+    text-align: center; 
+}
+
+.viewercursor {
+  border-right: 1px solid red;
 }

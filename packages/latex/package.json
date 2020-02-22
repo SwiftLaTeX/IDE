@@ -14,12 +14,14 @@
     "@theia/languages": "^0.15.0",
     "@theia/monaco": "^0.15.0",
     "@types/pdfjs-dist": "^2.1.3",
+    "jquery": "^3.4.1",
     "pdfjs-dist": "^2.2.228",
     "y-websocket": "^1.2.1",
     "yjs": "^13.0.2"
   },
   "devDependencies": {
-    "@theia/ext-scripts": "^0.15.0"
+    "@theia/ext-scripts": "^0.15.0",
+    "@types/jquery": "^3.3.32"
   },
   "nyc": {
     "extends": "../../configs/nyc.json"

@@ -206,13 +206,13 @@ export class LaTeXCommandContribution implements CommandContribution {
         if (compileResult.status === 1 || compileResult.status === 0) {
             /* Successful compilation */
             this.cachedXDV = compileResult.pdf;
+            this.preview_widget.updateXDV(this.cachedXDV!);
         } else {
             /* Failure */
             // const activate = true;
             // const reveal = true;
             // await this.outputContribution.openView({ activate, reveal });
         }
-        this.preview_widget.showPage();
     }
 
     private async processCompileLog(log: string): Promise<void> {
@@ -490,11 +490,11 @@ export class LaTeXCommandContribution implements CommandContribution {
                 if (obj.uri.includes('.swiftlatex') || obj.uri.includes('.theia')) {
                     continue;
                 }
-                this.latexEngine.makeMemFSFolder(obj.uri);
+                this.xdvExporter.makeMemFSFolder(obj.uri);
                 await this._syncFileToExporter(obj.uri);
             } else {
                 const content: Uint8Array = await this.s3filesystem.readFile(obj.uri);
-                this.latexEngine.writeMemFSFile(content, obj.uri);
+                this.xdvExporter.writeMemFSFile(content, obj.uri);
                 console.log('Writing file to exporter ' + obj.uri);
             }
         }
