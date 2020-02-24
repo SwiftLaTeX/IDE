@@ -26,15 +26,14 @@ export const SUPPORTED_ENCODINGS: { [encoding: string]: { labelLong: string; lab
         labelShort: 'UTF-8',
         order: 1,
         alias: 'utf8bom'
+    },
+    utf8bom: {
+        labelLong: 'UTF-8 with BOM',
+        labelShort: 'UTF-8 with BOM',
+        encodeOnly: true,
+        order: 2,
+        alias: 'utf8'
     }
-    // ,
-    // utf8bom: {
-    //     labelLong: 'UTF-8 with BOM',
-    //     labelShort: 'UTF-8 with BOM',
-    //     encodeOnly: true,
-    //     order: 2,
-    //     alias: 'utf8'
-    // },
     // utf16le: {
     //     labelLong: 'UTF-16 LE',
     //     labelShort: 'UTF-16 LE',
