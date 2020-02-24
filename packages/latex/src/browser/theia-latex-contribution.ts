@@ -143,6 +143,17 @@ export class LaTeXCommandContribution implements CommandContribution {
         this.output_channel = this.outputChannelManager.getChannel('LaTeX');
         this.preview_widget = new LaTeXPreviewWidget();
         this.app.shell.addWidget(this.preview_widget, { area: 'right' });
+        this.bindPreviewWidgetEvents();
+    }
+
+    private bindPreviewWidgetEvents(): void {
+        this.toDispose.push(this.preview_widget.onDidChangePosition(e => {
+            /* Todo If it is not busy */
+            /* Todo Navigate To Correct File */
+            /* Url: Convert FID to File Url */
+            // this.monacoEditor.cursor = { line: e.line + 1, character: e.column };
+            console.log('go to ' + e.line);
+        }));
     }
 
     registerCommands(registry: CommandRegistry): void {
@@ -218,39 +229,41 @@ export class LaTeXCommandContribution implements CommandContribution {
     private async processCompileLog(log: string): Promise<void> {
         const parseRes = LatexParserModule.parse(log);
         const diags: Map<string, Diagnostic[]> = new Map<string, Diagnostic[]>();
+
         const allStuff = parseRes.errors.concat(parseRes.warnings);
+
         for (let j = 0; j < allStuff.length; j++) {
             const error = allStuff[j];
             let uri = error.file;
-            if (uri.endsWith('.tex') || uri.endsWith('.bib')) {
-                const diag: Diagnostic = {
-                    range: {
-                        start: {
-                            line: error.line - 1,
-                            character: 0
-                        },
-                        end: {
-                            line: error.line - 1,
-                            character: 0
-                        }
+            const diag: Diagnostic = {
+                range: {
+                    start: {
+                        line: error.line - 1,
+                        character: 0
                     },
-                    message: error.message,
-                    severity: error.level === 'error' ? 1 : 2
-                };
-                /* Log file has the format ./xxx/xxx.tex, convert to them to standard */
-                uri = uri.substr(1);
-                /* Main_entry_trick */
-                if (uri === MAIN_ENTRY_TRICK + '.tex') {
-                    const temps = await this.resolveMainFile();
-                    uri = temps[0];
-                }
-
-                if (!diags.has(uri)) {
-                    diags.set(uri, []);
-                }
-                diags.get(uri)!.push(diag);
+                    end: {
+                        line: error.line - 1,
+                        character: 0
+                    }
+                },
+                message: error.message,
+                severity: error.level === 'error' ? 1 : 2
+            };
+            /* Log file has the format ./xxx/xxx.tex, convert to them to standard */
+            uri = uri.substr(1);
+            /* Main_entry_trick */
+            /* If file does not end with a tex, blame the main file */
+            if (uri === MAIN_ENTRY_TRICK + '.tex' || !uri.endsWith('.tex')) {
+                const temps = await this.resolveMainFile();
+                uri = temps[0];
             }
+
+            if (!diags.has(uri)) {
+                diags.set(uri, []);
+            }
+            diags.get(uri)!.push(diag);
         }
+
         diags.forEach((diag, key) => {
             this.problemManager.setMarkers(new URI(key), 'SwiftLaTeX', diag);
         });
@@ -516,6 +529,10 @@ export class LaTeXCommandContribution implements CommandContribution {
             }
         };
         this.toDispose.push(this.fileSystemWatcher.onFilesChanged(onFileChange));
+    }
+
+    dispose(): void {
+        this.toDispose.dispose();
     }
 
 }

@@ -553,7 +553,7 @@ class Special extends DviCommand {
 			const url = image[6].substr(1).slice(0, -1);
 			machine.putImage(imageWidth, imageHeight, url);
 		} else {
-			// console.log('unhandled ' + this.x);
+			console.error('unhandled ' + this.x);
 		}
 	}
 }
@@ -1197,6 +1197,13 @@ function parseHeader(buffer: Buffer, machine: XDVMachine): number {
 	return offset;
 }
 
+function parseFileLists(buffer: Buffer, machine: XDVMachine, offset: number): void {
+	const skip_count = buffer.readUInt16BE(offset);
+	console.log('skip ' + (offset - skip_count));
+	const fileList = buffer.slice(offset - skip_count, offset).toString();
+	console.log(fileList);
+}
+
 function parseFooter(buffer: Buffer, machine: XDVMachine): number {
 	let offset = buffer.length - 1;
 	// Locate Post
@@ -1211,6 +1218,10 @@ function parseFooter(buffer: Buffer, machine: XDVMachine): number {
 		}
 	}
 	offset -= 4;
+
+	/* Two post post hack */
+	parseFileLists(buffer, machine, offset - 3);
+
 	let prevPtr = buffer.readUInt32BE(offset);
 	if (prevPtr > offset) {
 		throw new Error('Parse failed in reading post ending');
@@ -1225,7 +1236,7 @@ function parseFooter(buffer: Buffer, machine: XDVMachine): number {
 
 	const total_page = buffer.readUInt16BE(offset + 27);
 
-    machine.totalPages = total_page;
+	machine.totalPages = total_page;
 
 	prevPtr = buffer.readUInt32BE(offset + 1);
 	if (prevPtr > offset) {

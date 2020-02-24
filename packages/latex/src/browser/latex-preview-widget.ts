@@ -19,7 +19,15 @@ import { Key, KeyCode } from '@theia/core/lib/browser';
 import '../../src/browser/style/index.css';
 import { parseXDV } from './xdv-parser';
 import { XDVMachine } from './xdv-machine';
-import * as $ from "jquery";
+import { Emitter, Event } from '@theia/core';
+import * as $ from 'jquery';
+
+export interface PositionChangeEvent {
+	fid: number;
+	cs: number;
+	line: number;
+	column: number;
+}
 
 export class LaTeXPreviewWidget extends BaseWidget {
 
@@ -31,20 +39,25 @@ export class LaTeXPreviewWidget extends BaseWidget {
 
 	private user_zoom_ratio: number = 1.0;
 
+	private init_from_viewer: boolean = false;
+
+	protected readonly onDidChangePositionEmitter = new Emitter<PositionChangeEvent>();
+
 	constructor(
 
 	) {
 		super();
-		this.title.label = 'preview';
-		this.title.caption = this.title.label;
-		this.title.closable = false;
-		this.id = 'latex-preview';
-		this.title.iconClass = 'fa fa-eye';
-		this.addClass('swiftlatex-preview-widget');
-		this.node.tabIndex = 0;
-		this.setupViewer(this.node);
+		this.toDispose.push(this.onDidChangePositionEmitter);
+		this.setupViewer();
 		this.update();
+	}
 
+	dispose(): void {
+		this.toDispose.dispose();
+	}
+
+	get onDidChangePosition(): Event<PositionChangeEvent> {
+		return this.onDidChangePositionEmitter.event;
 	}
 
 	private createButton(parent: HTMLElement, title: string, ...className: string[]): HTMLElement {
@@ -55,7 +68,17 @@ export class LaTeXPreviewWidget extends BaseWidget {
 		return button;
 	}
 
-	private setupViewer(parent: HTMLElement): void {
+	private setupViewer(): void {
+		/* self */
+		this.title.label = 'preview';
+		this.title.caption = this.title.label;
+		this.title.closable = false;
+		this.id = 'latex-preview';
+		this.title.iconClass = 'fa fa-eye';
+		this.addClass('swiftlatex-preview-widget');
+		this.node.tabIndex = 0;
+		const parent = this.node;
+
 		/* toolbar */
 		const toolbar = document.createElement('div');
 		toolbar.classList.add('swiftlatex-preview-toolbar');
@@ -148,33 +171,43 @@ export class LaTeXPreviewWidget extends BaseWidget {
 	}
 
 	private unbindEvents(): void {
-		$(".pf-line > span").off();
+		$('.pf-line > span').off();
 	}
 
 	private bindEvents(): void {
-		$(".pf-line > span").on('click', event_obj => {
+		$('.pf-line > span').on('click', event_obj => {
+			this.init_from_viewer = true;
 			this.doShowCursor(event_obj);
 		});
 	}
 
 	private clearCursor(): void {
-		$(".viewercursor").remove();
+		$('.viewercursor').remove();
 	}
 
 	private doShowCursor(event_obj: JQuery.ClickEvent): void {
 		this.clearCursor();
 		const span_obj = $(event_obj.target);
 		// const is_space = span_obj.hasClass('pf-space');
-		if (this.get_ecs(span_obj) === 0 && this.get_erow(span_obj) !== 0) {
-			const cursor_html = `<span class='viewercursor' l=${this.get_erow(span_obj)} c=${this.get_ecol(span_obj)} f=${this.get_fid(span_obj)}></span>`;
-			if (event_obj.pageX > span_obj.offset()!.left + span_obj.width()! / 2) {
-				span_obj.after(cursor_html);
-			} else {
-				span_obj.before(cursor_html);
+		if (this.get_erow(span_obj) !== 0) {
+			if (this.get_ecs(span_obj) === 0) {
+				const cursor_html = `<span class='viewercursor' l=${this.get_erow(span_obj)} c=${this.get_ecol(span_obj)} f=${this.get_fid(span_obj)}></span>`;
+				if (event_obj.pageX > span_obj.offset()!.left + span_obj.width()! / 2) {
+					span_obj.after(cursor_html);
+				} else {
+					span_obj.before(cursor_html);
+				}
 			}
-		} else if (this.get_ecs(span_obj) !== 0 && this.get_erow(span_obj) !== 0) {
-			this.clearCursor();
+
 			/* Fire event */
+			if (this.init_from_viewer) {
+				this.onDidChangePositionEmitter.fire({
+					line: this.get_erow(span_obj),
+					column: this.get_ecol(span_obj),
+					fid: this.get_fid(span_obj),
+					cs: this.get_ecs(span_obj)
+				});
+			}
 		}
 	}
 
@@ -187,8 +220,8 @@ export class LaTeXPreviewWidget extends BaseWidget {
 			const { srcElement } = e;
 			if (srcElement instanceof HTMLInputElement) {
 				let input_val: string = <string>$(srcElement).val();
-				if (input_val.includes("/")) {
-					input_val = input_val.split("/")[0];
+				if (input_val.includes('/')) {
+					input_val = input_val.split('/')[0];
 				}
 				const vv = parseInt(input_val);
 				if (!isNaN(vv)) {
@@ -204,35 +237,35 @@ export class LaTeXPreviewWidget extends BaseWidget {
 	}
 
 	private doShowPageNumber(): void {
-		$("#swiftlatex-preview-pagecontrol").val(`${this.currentPage}/${this.totalPage}`);
+		$('#swiftlatex-preview-pagecontrol').val(`${this.currentPage}/${this.totalPage}`);
 	}
 
 	private get_erow(obj: JQuery<HTMLElement>): number {
-		const inp = obj.attr("l");
+		const inp = obj.attr('l');
 		if (!inp) {
 			return 0;
 		}
 		return parseInt(inp);
 	};
 
-	private get_ecol = function(obj: JQuery<HTMLElement>): number {
-		const inp = obj.attr("c");
+	private get_ecol(obj: JQuery<HTMLElement>): number {
+		const inp = obj.attr('c');
 		if (!inp) {
 			return 0;
 		}
 		return parseInt(inp);
 	};
 
-	private get_ecs = function(obj: JQuery<HTMLElement>): number {
-		const inp = obj.attr("cs");
+	private get_ecs(obj: JQuery<HTMLElement>): number {
+		const inp = obj.attr('cs');
 		if (!inp) {
 			return 0;
 		}
 		return parseInt(inp);
 	};
 
-	private get_fid = function(obj: JQuery<HTMLElement>): number {
-		const inp = obj.attr("f");
+	private get_fid(obj: JQuery<HTMLElement>): number {
+		const inp = obj.attr('f');
 		if (!inp) {
 			return 0;
 		}

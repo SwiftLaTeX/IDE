@@ -144,18 +144,18 @@ export class XDVMachine {
 	}
 
 	pushColor(c: string): void {
+		this.endTextMode();
 		this.colorStack.push(this.color);
 		this.color = c;
-		this.endTextMode();
 	}
 
 	popColor(): void {
+		this.endTextMode();
 		if (this.colorStack.length >= 1) {
 			this.color = this.colorStack.pop()!;
 		} else {
 			throw Error('Color stack is empty');
 		}
-		this.endTextMode();
 	}
 
 	setPapersize(width: number, height: number): void {
@@ -181,17 +181,17 @@ export class XDVMachine {
 	}
 
 	push(): void {
-		this.stack.push(new Position(this.position));
 		this.endTextMode();
+		this.stack.push(new Position(this.position));
 	}
 
 	pop(): void {
+		this.endTextMode();
 		if (this.stack.length >= 1) {
 			this.position = this.stack.pop()!;
 		} else {
 			throw Error('Position stack is empty');
 		}
-		this.endTextMode();
 	}
 
 	beginPage(page: number, h_offset: number, v_offset: number): void {
@@ -243,6 +243,7 @@ export class XDVMachine {
 	}
 
 	setFont(fontnum: number): void {
+		this.endTextMode();
 		if (this.fonts.has(fontnum)) {
 			this.font = this.fonts.get(fontnum)!;
 			if (!(this.usedfonts.has(this.font.name))) {
