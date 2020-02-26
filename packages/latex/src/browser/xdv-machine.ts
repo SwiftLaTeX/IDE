@@ -131,6 +131,8 @@ export class XDVMachine {
 
 	lastSpacePos: CharPosition | undefined = undefined;
 
+	fileList: string[] = [];
+
 	constructor() {
 
 	}

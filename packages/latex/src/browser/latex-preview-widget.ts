@@ -23,7 +23,7 @@ import { Emitter, Event } from '@theia/core';
 import * as $ from 'jquery';
 
 export interface PositionChangeEvent {
-	fid: number;
+	url: string | undefined;
 	cs: number;
 	line: number;
 	column: number;
@@ -39,7 +39,9 @@ export class LaTeXPreviewWidget extends BaseWidget {
 
 	private user_zoom_ratio: number = 1.0;
 
-	private init_from_viewer: boolean = false;
+	private initFromViewer: boolean = false;
+
+	private cachedFileList: string[] = [];
 
 	protected readonly onDidChangePositionEmitter = new Emitter<PositionChangeEvent>();
 
@@ -158,6 +160,7 @@ export class LaTeXPreviewWidget extends BaseWidget {
 			if (!parse_ok) {
 				return;
 			}
+			this.cachedFileList = xdvMachine.fileList;
 			this.totalPage = xdvMachine.totalPages;
 			const htmlContent = xdvMachine.getBody();
 			const styleContent = '<style>' + xdvMachine.getStyle() + '</style>\n';
@@ -165,6 +168,7 @@ export class LaTeXPreviewWidget extends BaseWidget {
 			$('#swiftlatex_preview_viewer').html('');
 			$('#swiftlatex_preview_viewer').append(styleContent);
 			$('#swiftlatex_preview_viewer').append(htmlContent);
+			this.doZoom();
 			this.bindEvents();
 			this.doShowPageNumber();
 		}
@@ -176,8 +180,10 @@ export class LaTeXPreviewWidget extends BaseWidget {
 
 	private bindEvents(): void {
 		$('.pf-line > span').on('click', event_obj => {
-			this.init_from_viewer = true;
-			this.doShowCursor(event_obj);
+			this.initFromViewer = true;
+			const span_obj = $(event_obj.target);
+			const beforeOrAfter = event_obj.pageX > span_obj.offset()!.left + span_obj.width()! / 2;
+			this.doShowCursor(span_obj, beforeOrAfter);
 		});
 	}
 
@@ -185,14 +191,13 @@ export class LaTeXPreviewWidget extends BaseWidget {
 		$('.viewercursor').remove();
 	}
 
-	private doShowCursor(event_obj: JQuery.ClickEvent): void {
+	private doShowCursor(span_obj: JQuery<HTMLElement>, beforeOrAfter: boolean): void {
 		this.clearCursor();
-		const span_obj = $(event_obj.target);
 		// const is_space = span_obj.hasClass('pf-space');
-		if (this.get_erow(span_obj) !== 0) {
-			if (this.get_ecs(span_obj) === 0) {
-				const cursor_html = `<span class='viewercursor' l=${this.get_erow(span_obj)} c=${this.get_ecol(span_obj)} f=${this.get_fid(span_obj)}></span>`;
-				if (event_obj.pageX > span_obj.offset()!.left + span_obj.width()! / 2) {
+		if (this.getRow(span_obj) !== 0) {
+			if (this.getEcs(span_obj) === 0) {
+				const cursor_html = `<span class='viewercursor' l=${this.getRow(span_obj)} c=${this.getCol(span_obj) + 1} f=${this.getFid(span_obj)}></span>`;
+				if (beforeOrAfter) {
 					span_obj.after(cursor_html);
 				} else {
 					span_obj.before(cursor_html);
@@ -200,12 +205,12 @@ export class LaTeXPreviewWidget extends BaseWidget {
 			}
 
 			/* Fire event */
-			if (this.init_from_viewer) {
+			if (this.initFromViewer) {
 				this.onDidChangePositionEmitter.fire({
-					line: this.get_erow(span_obj),
-					column: this.get_ecol(span_obj),
-					fid: this.get_fid(span_obj),
-					cs: this.get_ecs(span_obj)
+					line: this.getRow(span_obj),
+					column: this.getCol(span_obj),
+					url: this.fidToUrl(this.getFid(span_obj)),
+					cs: this.getEcs(span_obj)
 				});
 			}
 		}
@@ -240,7 +245,7 @@ export class LaTeXPreviewWidget extends BaseWidget {
 		$('#swiftlatex-preview-pagecontrol').val(`${this.currentPage}/${this.totalPage}`);
 	}
 
-	private get_erow(obj: JQuery<HTMLElement>): number {
+	private getRow(obj: JQuery<HTMLElement>): number {
 		const inp = obj.attr('l');
 		if (!inp) {
 			return 0;
@@ -248,7 +253,7 @@ export class LaTeXPreviewWidget extends BaseWidget {
 		return parseInt(inp);
 	};
 
-	private get_ecol(obj: JQuery<HTMLElement>): number {
+	private getCol(obj: JQuery<HTMLElement>): number {
 		const inp = obj.attr('c');
 		if (!inp) {
 			return 0;
@@ -256,7 +261,7 @@ export class LaTeXPreviewWidget extends BaseWidget {
 		return parseInt(inp);
 	};
 
-	private get_ecs(obj: JQuery<HTMLElement>): number {
+	private getEcs(obj: JQuery<HTMLElement>): number {
 		const inp = obj.attr('cs');
 		if (!inp) {
 			return 0;
@@ -264,11 +269,135 @@ export class LaTeXPreviewWidget extends BaseWidget {
 		return parseInt(inp);
 	};
 
-	private get_fid(obj: JQuery<HTMLElement>): number {
+	private getFid(obj: JQuery<HTMLElement>): number {
 		const inp = obj.attr('f');
 		if (!inp) {
 			return 0;
 		}
 		return parseInt(inp);
 	};
+
+	private fidToUrl(fid: number): string | undefined {
+		if (fid > this.cachedFileList.length) {
+			return undefined;
+		}
+
+		return this.cachedFileList[fid - 1];
+	}
+
+	private urlToFid(url: string): number {
+		for (let j = 0; j < this.cachedFileList.length; j++) {
+			if (this.cachedFileList[j] === url) {
+				return j + 1;
+			}
+		}
+		return -1;
+	}
+
+	private isCursorShowing(): boolean {
+		return ($('.viewercursor').length === 1);
+	}
+
+	public handleEditorCursorMoved(line: number, column: number, uri: string): void {
+		this.initFromViewer = false;
+		const fid = this.urlToFid(uri);
+		if (fid === -1) {
+			return;
+		}
+
+		if (this.isCursorShowing()) {
+			/* Todo Consider Adding It */
+			// const cursorObj = $('.viewercursor');
+			// const orirow = this.getRow(cursorObj);
+			// const oricol = this.getCol(cursorObj);
+			// const orifid = this.getFid(cursorObj);
+			// /* Cursor is always one bit ahead */
+			// if (orirow === line && oricol === column + 1 && orifid === fid) {
+			// 	return;
+			// }
+			this.clearCursor();
+		}
+
+		console.log(`looking for span[l='${line}' c='${column}' f='${fid}']`);
+		const candicates = $(`span[l='${line}']`);
+		const filteredOnes: JQuery<HTMLElement>[] = [];
+		candicates.each((index, element) => {
+			const elementJquery = $(element);
+			if (this.getCol(elementJquery) === column && this.getEcs(elementJquery) === 0 && this.getFid(elementJquery) === fid) {
+				filteredOnes.push(elementJquery);
+			}
+		});
+
+		if (filteredOnes.length > 0) {
+			this.doShowCursor(filteredOnes[0], true);
+		}
+	}
+
+	public handleCharacterInserted(nchar: string): void {
+		this.initFromViewer = false;
+		if (!this.isCursorShowing()) {
+			return;
+		}
+		const cursorObj = $('.viewercursor');
+		const orirow = this.getRow(cursorObj);
+		const oricol = this.getCol(cursorObj);
+		const orifid = this.getFid(cursorObj);
+
+		if (nchar === ' ') {
+			nchar = '&nbsp';
+		}
+		cursorObj.before(`<span l=${orirow} c=${oricol} f=${orifid} cs=0>${nchar}</span>`);
+		cursorObj.attr('c', oricol + 1);
+
+		/* Fix the following */
+		let nextobj = cursorObj;
+		let stepCount = 0;
+		while (stepCount < 255) {
+			stepCount += 1;
+			nextobj = nextobj.next();
+			if (nextobj.length === 0) {
+				break;
+			}
+			const tmpcol = this.getCol(nextobj) + 1;
+			nextobj.attr('c', tmpcol);
+		}
+	}
+
+	public handleCharacterDeleted(): void {
+		this.initFromViewer = false;
+		if (!this.isCursorShowing()) {
+			return;
+		}
+		const cursorObj = $('.viewercursor');
+		const oricol = this.getCol(cursorObj);
+
+		if (oricol === 1) {
+			return;
+		}
+
+		const prevspan = cursorObj.prev();
+		if (prevspan.length === 0) {
+			return;
+		}
+
+		prevspan.remove();
+		// if (nchar === ' ' && prevspan.hasClass('pf-space')) {
+		// 	prevspan.remove();
+		// } else if (prevspan.html() === nchar) {
+		// 	prevspan.remove();
+		// }
+
+		/* Fix the following */
+		let nextobj = cursorObj;
+		let stepCount = 0;
+		while (stepCount < 255) {
+			stepCount += 1;
+			nextobj = nextobj.next();
+			if (nextobj.length === 0) {
+				break;
+			}
+			const tmpcol = this.getCol(nextobj) - 1;
+			nextobj.attr('c', tmpcol);
+		}
+	}
 }

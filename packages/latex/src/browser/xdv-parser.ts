@@ -1199,9 +1199,11 @@ function parseHeader(buffer: Buffer, machine: XDVMachine): number {
 
 function parseFileLists(buffer: Buffer, machine: XDVMachine, offset: number): void {
 	const skip_count = buffer.readUInt16BE(offset);
-	console.log('skip ' + (offset - skip_count));
-	const fileList = buffer.slice(offset - skip_count, offset).toString();
-	console.log(fileList);
+	// console.log('skip ' + (offset - skip_count));
+	const fileListStr = buffer.slice(offset - skip_count, offset).toString();
+	const fileList = fileListStr.split(';');
+	fileList.pop();
+	machine.fileList = fileList;
 }
 
 function parseFooter(buffer: Buffer, machine: XDVMachine): number {
@@ -1220,7 +1222,7 @@ function parseFooter(buffer: Buffer, machine: XDVMachine): number {
 	offset -= 4;
 
 	/* Two post post hack */
-	parseFileLists(buffer, machine, offset - 3);
+	parseFileLists(buffer, machine, offset - 2);
 
 	let prevPtr = buffer.readUInt32BE(offset);
 	if (prevPtr > offset) {
@@ -1230,7 +1232,7 @@ function parseFooter(buffer: Buffer, machine: XDVMachine): number {
 
 	// Post Sanity Check
 	const post_opcode = buffer.readUInt8(offset);
-	if (post_opcode !== 248) {
+	if (post_opcode !== Opcode.post) {
 		throw new Error('Parse failed in reading post preamble');
 	}
 

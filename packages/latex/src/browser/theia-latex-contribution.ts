@@ -30,13 +30,14 @@ import { Diagnostic } from '@theia/languages/lib/browser';
 import { LatexParserModule } from './latex-log-parser';
 import { FileSystemWatcher, FileChangeEvent } from '@theia/filesystem/lib/browser/filesystem-watcher';
 import URI from '@theia/core/lib/common/uri';
-import { FrontendApplication } from '@theia/core/lib/browser';
+import { FrontendApplication, OpenerService, open } from '@theia/core/lib/browser';
 import { LaTeXPreviewWidget } from './latex-preview-widget';
 import { UriAwareCommandHandler } from '@theia/core/lib/common/uri-command-handler';
 import { SelectionService } from '@theia/core/lib/common/selection-service';
 import { NavigatorContextMenu } from '@theia/navigator/lib/browser/navigator-contribution';
-
-const MAIN_ENTRY_TRICK: string = '/InP0t_SwIfTLoTEx_';
+import { EditorManager } from '@theia/editor/lib/browser';
+import { OutputContribution } from '@theia/output/lib/browser/output-contribution';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 export namespace LaTeXMenus {
     export const LATEX = [...MAIN_MENU_BAR, '7_latex'];
@@ -115,15 +116,20 @@ export class LaTeXMenuContribution implements MenuContribution {
     }
 }
 
+const RETRY_INTERVAL = 2000;
+
 @injectable()
 export class LaTeXCommandContribution implements CommandContribution {
 
     private cachedXDV: Uint8Array | undefined = undefined;
     private hasFileSyncedToEngine: boolean = false;
     protected readonly toDispose = new DisposableCollection();
-    private readonly opened_handles: Map<string, number> = new Map<string, number>();
+    protected readonly toDisposePerEditor = new DisposableCollection();
+    private readonly opened_yjs_handles: Map<string, number> = new Map<string, number>();
     private output_channel: OutputChannel;
     private preview_widget: LaTeXPreviewWidget;
+    private lastCompileTime: number = 0;
+    private retryHandle: number = -1;
     constructor(
         @inject(S3StorageSystem) private readonly s3filesystem: S3StorageSystem,
         @inject(MessageService) private readonly messageService: MessageService,
@@ -135,6 +141,9 @@ export class LaTeXCommandContribution implements CommandContribution {
         @inject(FileSystemWatcher) protected readonly fileSystemWatcher: FileSystemWatcher,
         @inject(FrontendApplication) protected readonly app: FrontendApplication,
         @inject(SelectionService) protected readonly selectionService: SelectionService,
+        @inject(OpenerService) protected readonly openerService: OpenerService,
+        @inject(EditorManager) protected readonly editorManager: EditorManager,
+        @inject(OutputContribution) protected readonly outputContribution: OutputContribution,
     ) {
         this.toDispose.push(this.workspace.onDidOpenTextDocument(model => this.fireDidOpenDocument(model)));
         this.toDispose.push(this.workspace.onDidChangeTextDocument(param => this.fireDidChangeContents(param)));
@@ -147,23 +156,53 @@ export class LaTeXCommandContribution implements CommandContribution {
     }
 
     private bindPreviewWidgetEvents(): void {
+        /* Cursor Event from Preview Widget */
         this.toDispose.push(this.preview_widget.onDidChangePosition(e => {
-            /* Todo If it is not busy */
-            /* Todo Navigate To Correct File */
-            /* Url: Convert FID to File Url */
-            // this.monacoEditor.cursor = { line: e.line + 1, character: e.column };
-            console.log('go to ' + e.line);
+            const openOptions = {
+                selection: {
+                    start: {
+                        line: e.line - 1,
+                        character: e.column - 1
+                    },
+                    end: {
+                        line: e.line - 1,
+                        character: e.column - 1
+                    }
+                }
+            };
+            open(this.openerService, new URI(e.url), openOptions).catch(err => {
+                /* Todo Handle Error */
+            });
+        }));
+
+        /* Cursor Event from Editor */
+        this.toDispose.push(this.editorManager.onCurrentEditorChanged(editorWidget => {
+            this.toDisposePerEditor.dispose();
+            if (editorWidget) {
+                const { editor } = editorWidget;
+                if (editor) {
+                    this.toDisposePerEditor.push(editor.onCursorPositionChanged(() => {
+                        const { cursor } = editor;
+                        let currentURI = editor.document.uri;
+                        if (currentURI.startsWith('file:///')) {
+                            currentURI = currentURI.substr(8);
+                        }
+                        this.preview_widget.handleEditorCursorMoved(cursor.line + 1, cursor.character, currentURI);
+                        // console.log(`${cursor.line}-${cursor.character}-${currentURI}`);
+                    }));
+                }
+            }
         }));
     }
 
     registerCommands(registry: CommandRegistry): void {
         registry.registerCommand(LaTeXCommands.BUILD_QUICK, {
             execute: () => this.quickBuild(),
-            isEnabled: () => this.latexEngine.isReady()
+            isEnabled: () => this.latexEngine.isReady(),
         });
         registry.registerCommand(LaTeXCommands.BUILD_LINK, {
             execute: () => this.fullBuild(),
-            isEnabled: () => this.latexEngine.isReady()
+            isEnabled: () => this.latexEngine.isReady(),
         });
         registry.registerCommand(LaTeXCommands.PROJECT_EXPORT, {
             execute: () => this.exportPDF(),
@@ -171,11 +210,10 @@ export class LaTeXCommandContribution implements CommandContribution {
         });
         registry.registerCommand(LaTeXCommands.PROJECT_CLEAN, {
             execute: () => this.cleanProject(),
-            isEnabled: () => this.latexEngine.isReady()
+            isEnabled: () => this.latexEngine.isReady(),
         });
         registry.registerCommand(LaTeXCommands.ENGINE_RESTART, {
-            execute: () => this.restartEngine(),
-            isEnabled: () => this.latexEngine.isReady(),
+            execute: () => this.restartEngine()
         });
         registry.registerCommand(
             LaTeXCommands.ENGINE_SET_ENTRY,
@@ -186,20 +224,21 @@ export class LaTeXCommandContribution implements CommandContribution {
         );
     }
 
-    protected async quickBuild(): Promise<void> {
+    protected async quickBuild(): Promise<boolean> {
+
         if (!this.latexEngine.isReady()) {
-            return;
+            return false;
         }
 
         const mainTempFiles = await this.resolveMainFile();
         if (mainTempFiles.length === 0) {
             this.messageService.error('Cannot locate the main LaTeX entry file. Please create a main entry file in root directory before compilation.', { timeout: 15000 });
-            return;
+            return false;
         }
 
         if (mainTempFiles.length > 1) {
             this.messageService.error(`Compiler cannot tell which file is the main entry file, either ${mainTempFiles[0]} or ${mainTempFiles[1]}.`, { timeout: 15000 });
-            return;
+            return false;
         }
 
         if (!this.hasFileSyncedToEngine) {
@@ -207,26 +246,30 @@ export class LaTeXCommandContribution implements CommandContribution {
             await this._syncFileToEngine('/');
         }
 
-        this.messageService.info('Building preview', { timeout: 3000 });
+        // this.messageService.info('Building preview', { timeout: 3000 });
         this.latexEngine.setEngineMainFile(mainTempFiles[0]);
         const compileResult = await this.latexEngine.compileLaTeX();
         /* Write log to output and parse log */
-        this.output_channel.clear();
-        this.output_channel.append(compileResult.log);
         this.processCompileLog(compileResult.log);
         if (compileResult.status === 1 || compileResult.status === 0) {
             /* Successful compilation */
             this.cachedXDV = compileResult.pdf;
             this.preview_widget.updateXDV(this.cachedXDV!);
+            return true;
         } else {
-            /* Failure */
-            // const activate = true;
-            // const reveal = true;
-            // await this.outputContribution.openView({ activate, reveal });
+            /* Failure, Probably showing log is more useful */
+            this.messageService.error('A build error is detected, please check the engine output', { timeout: 15000 });
+            const activate = true;
+            const reveal = true;
+            await this.outputContribution.openView({ activate, reveal });
+            // console.log('error detected ' + compileResult.status);
+            return false;
         }
     }
 
     private async processCompileLog(log: string): Promise<void> {
+        this.output_channel.clear();
+        this.output_channel.append(log);
         const parseRes = LatexParserModule.parse(log);
         const diags: Map<string, Diagnostic[]> = new Map<string, Diagnostic[]>();
 
@@ -249,15 +292,14 @@ export class LaTeXCommandContribution implements CommandContribution {
                 message: error.message,
                 severity: error.level === 'error' ? 1 : 2
             };
+
             /* Log file has the format ./xxx/xxx.tex, convert to them to standard */
             uri = uri.substr(1);
-            /* Main_entry_trick */
-            /* If file does not end with a tex, blame the main file */
-            if (uri === MAIN_ENTRY_TRICK + '.tex' || !uri.endsWith('.tex')) {
+            /* Main_entry_trick If file does not end with a tex, blame the main file */
+            if (!uri.endsWith('.tex')) {
                 const temps = await this.resolveMainFile();
-                uri = temps[0];
+                uri = '/' + temps[0];
             }
-
             if (!diags.has(uri)) {
                 diags.set(uri, []);
             }
@@ -265,7 +307,7 @@ export class LaTeXCommandContribution implements CommandContribution {
         }
 
         diags.forEach((diag, key) => {
-            this.problemManager.setMarkers(new URI(key), 'SwiftLaTeX', diag);
+            this.problemManager.setMarkers(new URI(key), 'Engine', diag);
         });
     }
 
@@ -327,9 +369,6 @@ export class LaTeXCommandContribution implements CommandContribution {
     }
 
     protected async fullBuild(): Promise<void> {
-        if (!this.latexEngine.isReady()) {
-            return;
-        }
         /* Force a sync */
         this.hasFileSyncedToEngine = false;
 
@@ -338,7 +377,10 @@ export class LaTeXCommandContribution implements CommandContribution {
         /* Reach the fix point in 3 times */
         const try_time = 3;
         for (let j = 0; j < try_time; j++) {
-            await this.quickBuild();
+            const res = await this.quickBuild();
+            if (!res) {
+                break;
+            }
         }
     }
 
@@ -358,7 +400,7 @@ export class LaTeXCommandContribution implements CommandContribution {
         this.messageService.info('Exporting PDF...', { timeout: 3000 });
         await this.xdvExporter.loadExporter();
         await this._syncFileToExporter('/');
-        this.xdvExporter.writeMemFSFile(this.cachedXDV, MAIN_ENTRY_TRICK + '.xdv');
+        this.xdvExporter.writeMainEntryFile(this.cachedXDV);
         const res = await this.xdvExporter.exportPDF();
         this.xdvExporter.closeWorker();
         this.output_channel.clear();
@@ -390,6 +432,7 @@ export class LaTeXCommandContribution implements CommandContribution {
     protected async restartEngine(): Promise<void> {
         this.messageService.info('Restarting Engine...', { timeout: 3000 });
         this.latexEngine.closeWorker();
+        this.xdvExporter.closeWorker();
         this.hasFileSyncedToEngine = false;
         await this.latexEngine.loadEngine();
     }
@@ -398,10 +441,45 @@ export class LaTeXCommandContribution implements CommandContribution {
         if (this.shouldIgnore(param.textDocument)) {
             return;
         }
+        const save_uri = param.textDocument.uri.substr(7);
         if (this.latexEngine.isReady()) {
-            const save_uri = param.textDocument.uri.substr(7);
             this.latexEngine.writeMemFSFile(param.textDocument.getText(), save_uri);
             /* Please fire up a new compilation */
+        }
+        /* To call previewer */
+        const changeEvent = param.contentChanges;
+        if (changeEvent.length === 1) {
+            const affected: number = (<any>changeEvent[0]).rangeLength;
+            if (affected === 1) {
+                /* Delete */
+                this.preview_widget.handleCharacterDeleted();
+            } else if (affected === 0) {
+                /* Insert */
+                if (changeEvent[0].text.length === 1) {
+                    this.preview_widget.handleCharacterInserted(changeEvent[0].text);
+                }
+            }
+            // console.dir(changeEvent[0]);
+        }
+
+        this.tryBuild();
+    }
+
+    private tryBuild(): void {
+        if (this.retryHandle > 0) {
+            clearTimeout(this.retryHandle);
+            this.retryHandle = -1;
+        }
+
+        if (this.latexEngine.isReady() && Date.now() - this.lastCompileTime > RETRY_INTERVAL) {
+            this.lastCompileTime = Date.now();
+            this.quickBuild().catch(e => {
+
+            });
+        } else {
+            this.retryHandle = window.setTimeout(() => {
+                this.tryBuild();
+            }, RETRY_INTERVAL);
         }
     }
 
@@ -410,7 +488,7 @@ export class LaTeXCommandContribution implements CommandContribution {
             return;
         }
         /* Kick off YJS */
-        if (this.opened_handles.has(model.uri)) {
+        if (this.opened_yjs_handles.has(model.uri)) {
             return;
         }
         new MonacoYJSBinding(model);
@@ -420,8 +498,8 @@ export class LaTeXCommandContribution implements CommandContribution {
         if (this.shouldIgnore(model)) {
             return;
         }
-        if (this.opened_handles.has(model.uri)) {
-            this.opened_handles.delete(model.uri);
+        if (this.opened_yjs_handles.has(model.uri)) {
+            this.opened_yjs_handles.delete(model.uri);
         }
     }
 
@@ -472,7 +550,7 @@ export class LaTeXCommandContribution implements CommandContribution {
             return;
         }
 
-        const uri_str = uri.toString().substr(7);
+        const uri_str = uri.toString().substr(8);
         window.localStorage.setItem(window.location.pathname + 'main_config', uri_str);
         this.messageService.info(`Set ${uri_str} as the main entry.`, { timeout: 3000 });
     }
