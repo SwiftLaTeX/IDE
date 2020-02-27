@@ -59,11 +59,6 @@ export class TaskConfigurations implements Disposable {
      */
     protected taskCustomizationMap = new Map<string, TaskCustomization[]>();
 
-    /** last directory element under which we look for task config */
-    protected readonly TASKFILEPATH = '.theia';
-    /** task configuration file name */
-    protected readonly TASKFILE = 'tasks.json';
-
     protected client: TaskConfigurationClient | undefined = undefined;
 
     /**
@@ -239,11 +234,6 @@ export class TaskConfigurations implements Disposable {
         return undefined;
     }
 
-    /** returns the string uri of where the config file would be, if it existed under a given root directory */
-    protected getConfigFileUri(rootDir: string): string {
-        return new URI(rootDir).resolve(this.TASKFILEPATH).resolve(this.TASKFILE).toString();
-    }
-
     /**
      * Called when a change, to a config file we watch, is detected.
      */
@@ -301,7 +291,7 @@ export class TaskConfigurations implements Disposable {
         try {
             await this.taskConfigurationManager.openConfiguration(sourceFolderUri);
         } catch (e) {
-            console.error(`Error occurred while opening: ${this.TASKFILE}.`, e);
+            console.error(`Error occurred while opening 'tasks.json' in ${sourceFolderUri}.`, e);
         }
     }
 

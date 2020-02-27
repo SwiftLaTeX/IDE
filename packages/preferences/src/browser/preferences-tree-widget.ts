@@ -46,11 +46,12 @@ import { EditorWidget, EditorManager } from '@theia/editor/lib/browser';
 import { DisposableCollection, Emitter, Event, MessageService } from '@theia/core';
 import { Deferred } from '@theia/core/lib/common/promise-util';
 import { FileSystem, FileSystemUtils } from '@theia/filesystem/lib/common';
-import { UserStorageUri, THEIA_USER_STORAGE_FOLDER } from '@theia/userstorage/lib/browser';
+import { UserStorageUri } from '@theia/userstorage/lib/browser';
 import { WorkspaceService } from '@theia/workspace/lib/browser/workspace-service';
 import URI from '@theia/core/lib/common/uri';
 import { FoldersPreferencesProvider } from './folders-preferences-provider';
 import { PreferenceConfigurations } from '@theia/core/lib/browser/preferences/preference-configurations';
+import { EnvVariablesServer } from '@theia/core/lib/common/env-variables';
 
 @injectable()
 export class PreferencesContainer extends SplitPanel implements ApplicationShell.TrackableWidgetProvider, Saveable {
@@ -265,6 +266,9 @@ export class PreferencesEditorsContainer extends DockPanel {
     @inject(PreferenceProvider) @named(PreferenceScope.Workspace)
     protected readonly workspacePreferenceProvider: WorkspacePreferenceProvider;
 
+    @inject(EnvVariablesServer)
+    protected readonly envServer: EnvVariablesServer;
+
     private userPreferenceEditorWidget: PreferencesEditorWidget;
     private workspacePreferenceEditorWidget: PreferencesEditorWidget | undefined;
     private foldersPreferenceEditorWidget: PreferencesEditorWidget | undefined;
@@ -451,7 +455,8 @@ export class PreferencesEditorsContainer extends DockPanel {
 
         let uri = preferenceUri;
         if (preferenceUri.scheme === UserStorageUri.SCHEME && homeUri) {
-            uri = homeUri.resolve(THEIA_USER_STORAGE_FOLDER).resolve(preferenceUri.path);
+            const configDirUri = await this.envServer.getConfigDirUri();
+            uri = new URI(configDirUri).resolve(preferenceUri.path);
         }
         return homeUri
             ? FileSystemUtils.tildifyPath(uri.path.toString(), homeUri.path.toString())
@@ -470,8 +475,6 @@ export class PreferencesTreeWidget extends TreeWidget {
     private readonly onPreferenceSelectedEmitter: Emitter<{ [key: string]: string }>;
     readonly onPreferenceSelected: Event<{ [key: string]: string }>;
 
-    protected readonly toDispose: DisposableCollection;
-
     @inject(PreferencesMenuFactory) protected readonly preferencesMenuFactory: PreferencesMenuFactory;
     @inject(PreferenceService) protected readonly preferenceService: PreferenceService;
     @inject(PreferencesDecorator) protected readonly decorator: PreferencesDecorator;
@@ -487,14 +490,12 @@ export class PreferencesTreeWidget extends TreeWidget {
 
         this.onPreferenceSelectedEmitter = new Emitter<{ [key: string]: string }>();
         this.onPreferenceSelected = this.onPreferenceSelectedEmitter.event;
-        this.toDispose = new DisposableCollection();
         this.toDispose.push(this.onPreferenceSelectedEmitter);
 
         this.id = PreferencesTreeWidget.ID;
     }
 
     dispose(): void {
-        this.toDispose.dispose();
         super.dispose();
     }
 

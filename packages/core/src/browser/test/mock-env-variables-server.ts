@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2018 Red Hat, Inc. and others.
+ * Copyright (C) 2020 Red Hat, Inc. and others.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -14,8 +14,27 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-export namespace PluginPaths {
-    export const PLUGINS_LOGS_DIR = 'logs';
-    export const PLUGINS_GLOBAL_STORAGE_DIR = 'plugin-storage';
-    export const PLUGINS_WORKSPACE_STORAGE_DIR = 'workspace-storage';
+import URI from '../../common/uri';
+import { EnvVariablesServer, EnvVariable } from '../../common/env-variables';
+
+export class MockEnvVariablesServerImpl implements EnvVariablesServer {
+
+    constructor(protected readonly configDirUri: URI) { }
+
+    async getConfigDirUri(): Promise<string> {
+        return this.configDirUri.toString();
+    }
+
+    getExecPath(): Promise<string> {
+        throw new Error('Method not implemented.');
+    }
+
+    getVariables(): Promise<EnvVariable[]> {
+        throw new Error('Method not implemented.');
+    }
+
+    getValue(key: string): Promise<EnvVariable | undefined> {
+        throw new Error('Method not implemented.');
+    }
+
 }
