@@ -307,19 +307,19 @@ export class LaTeXPreviewWidget extends BaseWidget {
 
 		if (this.isCursorShowing()) {
 			/* Todo Consider Adding It */
-			// const cursorObj = $('.viewercursor');
-			// const orirow = this.getRow(cursorObj);
-			// const oricol = this.getCol(cursorObj);
-			// const orifid = this.getFid(cursorObj);
-			// /* Cursor is always one bit ahead */
-			// if (orirow === line && oricol === column + 1 && orifid === fid) {
-			// 	return;
-			// }
+			const cursorObj = $('.viewercursor');
+			const orirow = this.getRow(cursorObj);
+			const oricol = this.getCol(cursorObj);
+			const orifid = this.getFid(cursorObj);
+			/* Cursor is always one bit ahead */
+			if (orirow === line && oricol === column + 1 && orifid === fid) {
+				return;
+			}
 			this.clearCursor();
 		}
 
 		console.log(`looking for span[l='${line}' c='${column}' f='${fid}']`);
-		const candicates = $(`span[l='${line}']`);
+		const candicates = $(`.pf-line > span[l='${line}']`);
 		const filteredOnes: JQuery<HTMLElement>[] = [];
 		candicates.each((index, element) => {
 			const elementJquery = $(element);
@@ -363,7 +363,8 @@ export class LaTeXPreviewWidget extends BaseWidget {
 		}
 	}
 
-	public handleCharacterDeleted(): void {
+	public handleCharacterDeleted(nchar: string): void {
+
 		this.initFromViewer = false;
 		if (!this.isCursorShowing()) {
 			return;
@@ -380,24 +381,27 @@ export class LaTeXPreviewWidget extends BaseWidget {
 			return;
 		}
 
-		prevspan.remove();
-		// if (nchar === ' ' && prevspan.hasClass('pf-space')) {
-		// 	prevspan.remove();
-		// } else if (prevspan.html() === nchar) {
-		// 	prevspan.remove();
-		// }
-
+		let isRemoved = false;
+		if (nchar === ' ' && prevspan.hasClass('pf-space')) {
+			prevspan.remove();
+			isRemoved = true;
+		} else if (prevspan.html() === nchar) {
+			prevspan.remove();
+			isRemoved = true;
+		}
 		/* Fix the following */
-		let nextobj = cursorObj;
-		let stepCount = 0;
-		while (stepCount < 255) {
-			stepCount += 1;
-			nextobj = nextobj.next();
-			if (nextobj.length === 0) {
-				break;
+		if (isRemoved) {
+			let nextobj = cursorObj;
+			let stepCount = 0;
+			while (stepCount < 255) {
+				stepCount += 1;
+				nextobj = nextobj.next();
+				if (nextobj.length === 0) {
+					break;
+				}
+				const tmpcol = this.getCol(nextobj) - 1;
+				nextobj.attr('c', tmpcol);
 			}
-			const tmpcol = this.getCol(nextobj) - 1;
-			nextobj.attr('c', tmpcol);
 		}
 	}
 }

@@ -398,7 +398,8 @@ export class WorkspaceService implements FrontendApplicationContribution {
         this._roots.length = 0;
 
         await this.server.setMostRecentlyUsedWorkspace('');
-        this.reloadWindow();
+        // this.reloadWindow();
+        window.location.href = '/';
     }
 
     /**

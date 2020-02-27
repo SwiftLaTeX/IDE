@@ -197,7 +197,7 @@ export class LaTeXCommandContribution implements CommandContribution {
 
     registerCommands(registry: CommandRegistry): void {
         registry.registerCommand(LaTeXCommands.BUILD_QUICK, {
-            execute: () => this.quickBuild(),
+            execute: () => this.quickBuild(true),
             isEnabled: () => this.latexEngine.isReady(),
         });
         registry.registerCommand(LaTeXCommands.BUILD_LINK, {
@@ -224,7 +224,7 @@ export class LaTeXCommandContribution implements CommandContribution {
         );
     }
 
-    protected async quickBuild(): Promise<boolean> {
+    protected async quickBuild(shouldShowPreviewWidget: boolean = false): Promise<boolean> {
 
         if (!this.latexEngine.isReady()) {
             return false;
@@ -255,11 +255,14 @@ export class LaTeXCommandContribution implements CommandContribution {
             /* Successful compilation */
             this.cachedXDV = compileResult.pdf;
             this.preview_widget.updateXDV(this.cachedXDV!);
+            if (shouldShowPreviewWidget) {
+                this.app.shell.revealWidget(this.preview_widget.id);
+            }
             return true;
         } else {
             /* Failure, Probably showing log is more useful */
-            this.messageService.error('A build error is detected, please check the engine output', { timeout: 15000 });
-            const activate = true;
+            // this.messageService.error('A build error is detected, please check the engine output', { timeout: 15000 });
+            const activate = false;
             const reveal = true;
             await this.outputContribution.openView({ activate, reveal });
             // console.log('error detected ' + compileResult.status);
@@ -377,7 +380,7 @@ export class LaTeXCommandContribution implements CommandContribution {
         /* Reach the fix point in 3 times */
         const try_time = 3;
         for (let j = 0; j < try_time; j++) {
-            const res = await this.quickBuild();
+            const res = await this.quickBuild(true);
             if (!res) {
                 break;
             }
@@ -446,13 +449,26 @@ export class LaTeXCommandContribution implements CommandContribution {
             this.latexEngine.writeMemFSFile(param.textDocument.getText(), save_uri);
             /* Please fire up a new compilation */
         }
+
         /* To call previewer */
         const changeEvent = param.contentChanges;
         if (changeEvent.length === 1) {
             const affected: number = (<any>changeEvent[0]).rangeLength;
             if (affected === 1) {
                 /* Delete */
-                this.preview_widget.handleCharacterDeleted();
+                const internal_model = param.textDocument.textEditorModel;
+                const internal_stack: any = (<any>internal_model)._commandManager;
+                const last_operation_reverse: any = internal_stack.currentOpenStackElement;
+                if (last_operation_reverse && last_operation_reverse.editOperations && last_operation_reverse.editOperations.length === 1) {
+                    const rev_ops: any = last_operation_reverse.editOperations[0];
+                    if (rev_ops && rev_ops.operations && rev_ops.operations.length === 1) {
+                        const rev_op: any = rev_ops.operations[0];
+                        if (rev_op && rev_op.text) {
+                            this.preview_widget.handleCharacterDeleted(rev_op.text);
+                        }
+
+                    }
+                }
             } else if (affected === 0) {
                 /* Insert */
                 if (changeEvent[0].text.length === 1) {
@@ -533,7 +549,7 @@ export class LaTeXCommandContribution implements CommandContribution {
         /* See whether there is only one .tex file */
         for (let k = 0; k < objs.length; k++) {
             if (!objs[k].isDir && objs[k].uri.endsWith('.tex')) {
-                possibleCandicates.push(objs[k].uri);
+                possibleCandicates.push(objs[k].uri.substr(1));
             }
         }
 
