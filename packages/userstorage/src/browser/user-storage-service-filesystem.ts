@@ -37,12 +37,17 @@ export class UserStorageServiceFilesystemImpl implements UserStorageService {
         @inject(EnvVariablesServer) protected readonly envServer: EnvVariablesServer
 
     ) {
-        this.userStorageFolder = new URI('.swiftlatex');
-        watcher.watchFileChanges(userDataFolderUri).then(disposable =>
-            this.toDispose.push(disposable)
-        );
-        this.toDispose.push(this.watcher.onFilesChanged(changes => this.onDidFilesChanged(changes)));
+        this.userStorageFolder = this.envServer.getConfigDirUri().then(configDirUri => {
+            const userDataFolderUri = new URI(configDirUri);
+            watcher.watchFileChanges(userDataFolderUri).then(disposable =>
+                this.toDispose.push(disposable)
+            );
+            this.toDispose.push(this.watcher.onFilesChanged(changes => this.onDidFilesChanged(changes)));
+            return userDataFolderUri;
+        });
+
         this.toDispose.push(this.onUserStorageChangedEmitter);
+
     }
 
     dispose(): void {

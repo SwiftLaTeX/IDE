@@ -21,6 +21,6 @@ export const THEIA_EXT = 'theia-workspace';
 export const VSCODE_EXT = 'code-workspace';
 
 export async function getTemporaryWorkspaceFileUri(envVariableServer: EnvVariablesServer): Promise<URI> {
-    // const configDirUri = await envVariableServer.getConfigDirUri();
-    return new URI('.swiftlatex').resolve(`Untitled.${THEIA_EXT}`);
+    const configDirUri = await envVariableServer.getConfigDirUri();
+    return new URI(configDirUri).resolve(`Untitled.${THEIA_EXT}`);
 }

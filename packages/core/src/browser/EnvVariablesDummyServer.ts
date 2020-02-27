@@ -29,4 +29,8 @@ export class EnvVariablesDummyServer implements EnvVariablesServer {
 	async getValue(key: string): Promise<EnvVariable | undefined> {
 		return undefined;
 	}
+
+	async getConfigDirUri(): Promise<string> {
+		return '.swiftlatex';
+	}
 }
