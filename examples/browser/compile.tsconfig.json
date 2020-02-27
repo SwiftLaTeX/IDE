@@ -42,9 +42,6 @@
       "path": "../../packages/preferences/compile.tsconfig.json"
     },
     {
-      "path": "../../packages/textmate-grammars/compile.tsconfig.json"
-    },
-    {
       "path": "../../packages/workspace/compile.tsconfig.json"
     },
     {

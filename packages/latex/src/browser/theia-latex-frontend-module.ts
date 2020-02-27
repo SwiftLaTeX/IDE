@@ -21,6 +21,9 @@ import { LaTeXCommandContribution, LaTeXMenuContribution } from './theia-latex-c
 import { CommandContribution, MenuContribution } from '@theia/core/lib/common';
 import { LaTeXEngine } from './latex-engine';
 import { XDVExporter } from './xdv-exporter';
+import { LanguageGrammarDefinitionContribution } from '@theia/monaco/lib/browser/textmate/textmate-contribution';
+import { TeXContribution } from './latex-grammar';
+import { BibTeXContribution } from './bibtex-grammar';
 
 export default new ContainerModule(bind => {
 	// add your contribution bindings here
@@ -33,4 +36,8 @@ export default new ContainerModule(bind => {
 	bind(LaTeXMenuContribution).toSelf().inSingletonScope();
 	bind(MenuContribution).toService(LaTeXMenuContribution);
 
+	bind(TeXContribution).toSelf().inSingletonScope();
+    bind(LanguageGrammarDefinitionContribution).toService(TeXContribution);
+    bind(BibTeXContribution).toSelf().inSingletonScope();
+    bind(LanguageGrammarDefinitionContribution).toService(BibTeXContribution);
 });
