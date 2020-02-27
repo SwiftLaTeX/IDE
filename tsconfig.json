@@ -43,9 +43,6 @@
       "@theia/core/lib/*": [
         "packages/core/src/*"
       ],
-      "@theia/debug-nodejs/lib/*": [
-        "packages/debug-nodejs/src/*"
-      ],
       "@theia/debug/lib/*": [
         "packages/debug/src/*"
       ],
@@ -54,9 +51,6 @@
       ],
       "@theia/editor/lib/*": [
         "packages/editor/src/*"
-      ],
-      "@theia/editorconfig/lib/*": [
-        "packages/editorconfig/src/*"
       ],
       "@theia/file-search/lib/*": [
         "packages/file-search/src/*"
@@ -70,12 +64,6 @@
       "@theia/git/lib/*": [
         "packages/git/src/*"
       ],
-      "@theia/java-debug/lib/*": [
-        "packages/java-debug/src/*"
-      ],
-      "@theia/java/lib/*": [
-        "packages/java/src/*"
-      ],
       "@theia/json/lib/*": [
         "packages/json/src/*"
       ],
@@ -87,9 +75,6 @@
       ],
       "@theia/markers/lib/*": [
         "packages/markers/src/*"
-      ],
-      "@theia/merge-conflicts/lib/*": [
-        "packages/merge-conflicts/src/*"
       ],
       "@theia/messages/lib/*": [
         "packages/messages/src/*"
@@ -136,9 +121,6 @@
       "@theia/process/lib/*": [
         "packages/process/src/*"
       ],
-      "@theia/python/lib/*": [
-        "packages/python/src/*"
-      ],
       "@theia/scm/lib/*": [
         "packages/scm/src/*"
       ],
@@ -151,17 +133,8 @@
       "@theia/terminal/lib/*": [
         "packages/terminal/src/*"
       ],
-      "@theia/textmate-grammars/lib/*": [
-        "packages/textmate-grammars/src/*"
-      ],
-      "@theia/tslint/lib/*": [
-        "packages/tslint/src/*"
-      ],
       "@theia/typehierarchy/lib/*": [
         "packages/typehierarchy/src/*"
-      ],
-      "@theia/typescript/lib/*": [
-        "packages/typescript/src/*"
       ],
       "@theia/userstorage/lib/*": [
         "packages/userstorage/src/*"

@@ -21,23 +21,18 @@ cache:
     - packages/callhierarchy/node_modules
     - packages/console/node_modules
     - packages/core/node_modules
-    - packages/debug-nodejs/node_modules
     - packages/debug/node_modules
     - packages/editor-preview/node_modules
     - packages/editor/node_modules
-    - packages/editorconfig/node_modules
     - packages/file-search/node_modules
     - packages/filesystem/node_modules
     - packages/getting-started/node_modules
     - packages/git/node_modules
-    - packages/java-debug/node_modules
-    - packages/java/node_modules
     - packages/json/node_modules
     - packages/keymaps/node_modules
     - packages/languages/node_modules
     - packages/latex/node_modules
     - packages/markers/node_modules
-    - packages/merge-conflicts/node_modules
     - packages/messages/node_modules
     - packages/metrics/node_modules
     - packages/mini-browser/node_modules
@@ -53,21 +48,15 @@ cache:
     - packages/preferences/node_modules
     - packages/preview/node_modules
     - packages/process/node_modules
-    - packages/python/node_modules
     - packages/scm/node_modules
     - packages/search-in-workspace/node_modules
     - packages/task/node_modules
     - packages/terminal/node_modules
-    - packages/textmate-grammars/node_modules
-    - packages/tslint/node_modules
     - packages/typehierarchy/node_modules
-    - packages/typescript/node_modules
     - packages/userstorage/node_modules
     - packages/variable-resolver/node_modules
     - packages/workspace/node_modules
     # end_cache_directories
-    - packages/java-debug/download
-    - packages/debug-nodejs/download
 before_cache:
   # Runs before the cache is updated, after successful CI
   - rm -f node_modules/@theia/electron/post-install.log

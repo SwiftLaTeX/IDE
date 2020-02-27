@@ -26,9 +26,6 @@
       "path": "../packages/core/compile.tsconfig.json"
     },
     {
-      "path": "../packages/debug-nodejs/compile.tsconfig.json"
-    },
-    {
       "path": "../packages/debug/compile.tsconfig.json"
     },
     {
@@ -36,9 +33,6 @@
     },
     {
       "path": "../packages/editor/compile.tsconfig.json"
-    },
-    {
-      "path": "../packages/editorconfig/compile.tsconfig.json"
     },
     {
       "path": "../packages/file-search/compile.tsconfig.json"
@@ -53,12 +47,6 @@
       "path": "../packages/git/compile.tsconfig.json"
     },
     {
-      "path": "../packages/java-debug/compile.tsconfig.json"
-    },
-    {
-      "path": "../packages/java/compile.tsconfig.json"
-    },
-    {
       "path": "../packages/json/compile.tsconfig.json"
     },
     {
@@ -69,9 +57,6 @@
     },
     {
       "path": "../packages/markers/compile.tsconfig.json"
-    },
-    {
-      "path": "../packages/merge-conflicts/compile.tsconfig.json"
     },
     {
       "path": "../packages/messages/compile.tsconfig.json"
@@ -119,9 +104,6 @@
       "path": "../packages/process/compile.tsconfig.json"
     },
     {
-      "path": "../packages/python/compile.tsconfig.json"
-    },
-    {
       "path": "../packages/scm/compile.tsconfig.json"
     },
     {
@@ -134,16 +116,7 @@
       "path": "../packages/terminal/compile.tsconfig.json"
     },
     {
-      "path": "../packages/textmate-grammars/compile.tsconfig.json"
-    },
-    {
-      "path": "../packages/tslint/compile.tsconfig.json"
-    },
-    {
       "path": "../packages/typehierarchy/compile.tsconfig.json"
-    },
-    {
-      "path": "../packages/typescript/compile.tsconfig.json"
     },
     {
       "path": "../packages/userstorage/compile.tsconfig.json"

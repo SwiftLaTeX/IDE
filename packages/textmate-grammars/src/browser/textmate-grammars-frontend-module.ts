@@ -56,7 +56,6 @@ import { LanguageGrammarDefinitionContribution } from '@theia/monaco/lib/browser
 // import { RustContribution } from './rust';
 // import { PhpGrammarContribution } from './php';
 // import { CppContribution } from './cpp';
-import { JsonContribution } from './json';
 import { TeXContribution } from './tex';
 import { BibTeXContribution } from './bibtex';
 
