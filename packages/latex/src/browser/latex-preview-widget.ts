@@ -300,10 +300,16 @@ export class LaTeXPreviewWidget extends BaseWidget {
 
 	public handleEditorCursorMoved(line: number, column: number, uri: string): void {
 		this.initFromViewer = false;
+		if (uri.startsWith('file:///')) {
+			uri = uri.substr(8);
+		}
 		const fid = this.urlToFid(uri);
 		if (fid === -1) {
 			return;
 		}
+
+		/* Compatiablilty */
+		line += 1;
 
 		if (this.isCursorShowing()) {
 			/* Todo Consider Adding It */
@@ -330,6 +336,30 @@ export class LaTeXPreviewWidget extends BaseWidget {
 
 		if (filteredOnes.length > 0) {
 			this.doShowCursor(filteredOnes[0], true);
+			return;
+		}
+
+		let min_distance = 0xffff;
+		let heuristElement: JQuery<HTMLElement> | undefined = undefined;
+		let beforeOrAfter = true;
+		candicates.each((index, element) => {
+			const elementJquery = $(element);
+			if (this.getEcs(elementJquery) !== 0) {
+				return;
+			}
+			if (this.getFid(elementJquery) !== fid) {
+				return;
+			}
+			const distance = this.getCol(elementJquery) - column;
+			if (Math.abs(distance) <= min_distance) {
+				min_distance = Math.abs(distance);
+				heuristElement = elementJquery;
+				beforeOrAfter = !(distance > 0);
+			}
+		});
+
+		if (heuristElement !== undefined && heuristElement!.length > 0) {
+			this.doShowCursor(heuristElement, beforeOrAfter);
 		}
 	}
 

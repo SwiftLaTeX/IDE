@@ -559,6 +559,7 @@ export class S3StorageSystem {
             const getResult = await this.s3!.getObject({
                 Bucket: this.opts.bucket,
                 Key: this.opts.prefix + key,
+                ResponseCacheControl: 'max-age=0'
             }).promise();
             const obj = new S3Object();
             obj.size = getResult.ContentLength!;
@@ -642,23 +643,14 @@ export class S3StorageSystem {
             this.opts.sessionToken = json_creds['_SESSIONTOKEN'];
             this.opts.prefix = json_creds['_PREFIX'];
             this.opts.bucket = json_creds['_BUCKET'];
-            this.opts.expiry = json_creds['_EXPIRY'] * 1000;
+            this.opts.expiry = Date.now() + 60 * 2 * 1000;
             this.opts.endpoint = json_creds['_ENDPOINT'];
             if (!this.opts.apiKey) {
+            	window.alert('Failed to connect to SwiftLaTeX');
                 throw Error('Failed to obtain an api key');
             }
             if (!this.opts.prefix || !this.opts.prefix.endsWith('/')) {
                 throw Error('Prefix should not be empty or endwith a slash.');
-            }
-            if (this.opts.expiry < Date.now()) {
-                /* Unlikely to happen for https */
-                alert('Your system clock is incorrect, please sync your clock first');
-                throw Error('Please sync the time. ');
-            }
-
-            if (this.opts.expiry > Date.now() + 3600 * 1000) {
-                alert('Your system clock is incorrect, please sync your clock first');
-                throw Error('Please sync the time. ');
             }
 
             /* Have a new client */

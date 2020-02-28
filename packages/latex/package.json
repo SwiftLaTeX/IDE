@@ -14,6 +14,7 @@
     "@theia/languages": "^0.16.0",
     "@theia/monaco": "^0.16.0",
     "@types/pdfjs-dist": "^2.1.3",
+    "diff-match-patch-typescript": "^1.0.6",
     "jquery": "^3.4.1",
     "pdfjs-dist": "^2.2.228",
     "y-websocket": "^1.2.1",

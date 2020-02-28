@@ -37,6 +37,7 @@ import { SelectionService } from '@theia/core/lib/common/selection-service';
 import { NavigatorContextMenu } from '@theia/navigator/lib/browser/navigator-contribution';
 import { EditorManager } from '@theia/editor/lib/browser';
 import { OutputContribution } from '@theia/output/lib/browser/output-contribution';
+import { DiffMatchPatch } from 'diff-match-patch-typescript';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export namespace LaTeXMenus {
@@ -118,6 +119,13 @@ export class LaTeXMenuContribution implements MenuContribution {
 
 const RETRY_INTERVAL = 2000;
 
+interface EditContext {
+    text: string;
+    line: number;
+    column: number;
+    uri: string;
+}
+
 @injectable()
 export class LaTeXCommandContribution implements CommandContribution {
 
@@ -130,6 +138,8 @@ export class LaTeXCommandContribution implements CommandContribution {
     private preview_widget: LaTeXPreviewWidget;
     private lastCompileTime: number = 0;
     private retryHandle: number = -1;
+    private savedEditContext: EditContext | undefined = undefined;
+
     constructor(
         @inject(S3StorageSystem) private readonly s3filesystem: S3StorageSystem,
         @inject(MessageService) private readonly messageService: MessageService,
@@ -183,16 +193,71 @@ export class LaTeXCommandContribution implements CommandContribution {
                 if (editor) {
                     this.toDisposePerEditor.push(editor.onCursorPositionChanged(() => {
                         const { cursor } = editor;
-                        let currentURI = editor.document.uri;
-                        if (currentURI.startsWith('file:///')) {
-                            currentURI = currentURI.substr(8);
-                        }
-                        this.preview_widget.handleEditorCursorMoved(cursor.line + 1, cursor.character, currentURI);
+                        const currentURI = editor.document.uri;
+                        this.preview_widget.handleEditorCursorMoved(cursor.line, cursor.character, currentURI);
                         // console.log(`${cursor.line}-${cursor.character}-${currentURI}`);
                     }));
                 }
             }
         }));
+    }
+
+    private getCurrentContext(): EditContext | undefined {
+        const currentEditorWidget = this.editorManager.currentEditor;
+        if (currentEditorWidget) {
+            const currentEditor = currentEditorWidget.editor;
+            if (currentEditor) {
+                const cursor = currentEditor.cursor;
+                const currentURI = currentEditor.document.uri;
+                const text = currentEditor.document.getLineContent(cursor.line);
+                return {
+                    line: cursor.line,
+                    column: cursor.character,
+                    uri: currentURI,
+                    text: text
+                };
+            }
+        }
+        console.log('Fail to get context?');
+        return undefined;
+    }
+
+    private generateContextPatch(saved: EditContext, current: EditContext): string {
+        if (saved.line === current.line) {
+            const dmp = new DiffMatchPatch();
+            const diff = dmp.diff_main(saved.text, current.text);
+            let delcount = 0;
+            let inscount = 0;
+            let inscontent = '';
+            let delcontent = '';
+            for (const tindex in diff) {
+                if (diff[tindex][0] === 1) {
+                    inscount += 1;
+                    inscontent += diff[tindex][1];
+                } else if (diff[tindex][0] === -1) {
+                    delcount += 1;
+                    delcontent += diff[tindex][1];
+                }
+            }
+            if (inscount === 1 && delcount === 0) {
+                return '+' + inscontent;
+            } else if (inscount === 0 && delcount === 1) {
+                return '-' + delcontent.split('').reverse().join('');
+            }
+        }
+        return '';
+    }
+
+    public applyContextPatch(patch: string): void {
+        if (patch.startsWith('+')) {
+            for (let tmpk = 1; tmpk < patch.length; tmpk++) {
+                this.preview_widget.handleCharacterInserted(patch[tmpk]);
+            }
+        } else if (patch.startsWith('-')) {
+            for (let tmpk = 1; tmpk < patch.length; tmpk++) {
+                this.preview_widget.handleCharacterDeleted(patch[tmpk]);
+            }
+        }
     }
 
     registerCommands(registry: CommandRegistry): void {
@@ -248,13 +313,24 @@ export class LaTeXCommandContribution implements CommandContribution {
 
         // this.messageService.info('Building preview', { timeout: 3000 });
         this.latexEngine.setEngineMainFile(mainTempFiles[0]);
+
+        /* Todo */
+        this.savedEditContext = this.getCurrentContext();
         const compileResult = await this.latexEngine.compileLaTeX();
+
         /* Write log to output and parse log */
         this.processCompileLog(compileResult.log);
         if (compileResult.status === 1 || compileResult.status === 0) {
             /* Successful compilation */
             this.cachedXDV = compileResult.pdf;
             this.preview_widget.updateXDV(this.cachedXDV!);
+            if (this.savedEditContext) {
+                const currentContext = this.getCurrentContext();
+                const patch = this.generateContextPatch(this.savedEditContext!, currentContext!);
+                console.log(patch);
+                this.preview_widget.handleEditorCursorMoved(this.savedEditContext!.line, this.savedEditContext!.column, this.savedEditContext!.uri);
+                this.applyContextPatch(patch);
+            }
             if (shouldShowPreviewWidget) {
                 this.app.shell.revealWidget(this.preview_widget.id);
             }
@@ -478,7 +554,9 @@ export class LaTeXCommandContribution implements CommandContribution {
             // console.dir(changeEvent[0]);
         }
 
-        this.tryBuild();
+        if (save_uri.endsWith('.tex')) {
+            this.tryBuild();
+        }
     }
 
     private tryBuild(): void {
